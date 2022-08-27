@@ -1,0 +1,14 @@
+{
+    "output": "animtest.png",
+    "file_extension": "png",
+    "dirs": [
+        "./t1"
+    ],
+    "frame_width": 96,
+    "frame_height": 48,
+    "force_frame": {
+        "name": "crop",
+        "xoff": 0,
+        "yoff": 0
+    }
+}
