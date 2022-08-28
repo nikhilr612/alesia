@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Display","A plain struct with fields for width, height and title of window."]]});

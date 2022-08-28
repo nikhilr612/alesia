@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["alesia"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.60.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"struct\" href=\"alesia/input/struct.InputHandler.html\" title=\"struct alesia::input::InputHandler\">InputHandler</a>","synthetic":false,"types":["alesia::input::InputHandler"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
