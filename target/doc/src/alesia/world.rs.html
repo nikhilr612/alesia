@@ -749,6 +749,56 @@
 <span id="744">744</span>
 <span id="745">745</span>
 <span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Manages Renderables, Game Objects, Isometric Tilemaps, and Co-ordinate conversions.</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Error</span>;
@@ -764,6 +814,11 @@
 <span class="kw">use</span> <span class="ident">raylib::prelude::Color</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::input::Order</span>;
 
+<span class="comment">/*enum MovePerm {
+	Allowed,
+	Prohibited
+}*/</span>
+
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="doccomment">/// Plain struct to store map data</span>
 <span class="kw">struct</span> <span class="ident">TileMap</span> {
@@ -773,6 +828,8 @@
 	<span class="ident">map_height</span>: <span class="ident">usize</span>,
 	<span class="doccomment">/// Flattened array consisting of the tiles of the map</span>
  	<span class="ident">map_tiles</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+ 	<span class="doccomment">/// HashMap to map tile id to corresponding movement permissions.</span>
+ 	<span class="ident">tile_perm</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, <span class="ident">bool</span><span class="op">&gt;</span>,
 	<span class="doccomment">/// Flag to show or hide map.	</span>
 	<span class="ident">show</span>: <span class="ident">bool</span>
 }
@@ -783,6 +840,7 @@
 			<span class="ident">map_width</span>: <span class="number">0</span>,
 			<span class="ident">map_height</span>: <span class="number">0</span>,
 			<span class="ident">map_tiles</span>: <span class="macro">vec!</span>[],
+			<span class="ident">tile_perm</span>: <span class="ident">HashMap::new</span>(),
 			<span class="ident">show</span>: <span class="bool-val">false</span>
 		}
 	}
@@ -868,6 +926,7 @@
 		<span class="kw">return</span> <span class="ident">wots_f</span>(<span class="self">self</span>, <span class="self">self</span>.<span class="ident">cam_wx</span>, <span class="self">self</span>.<span class="ident">cam_wy</span>);
 	}
 
+	<span class="doccomment">/// Get size of tiles in tileset as a tuple of (width, height)</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_tile_size</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>) {
 		<span class="kw">return</span> <span class="self">self</span>.<span class="ident">tile_size</span>;
 	}
@@ -888,6 +947,7 @@
 		<span class="kw">return</span> <span class="self">self</span>.<span class="ident">tilemap</span>.<span class="ident">show</span>;
 	}
 
+	<span class="doccomment">/// Set the music id for the background music.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_bgm</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u8</span>) {
 		<span class="self">self</span>.<span class="ident">bgm_id</span> <span class="op">=</span> <span class="ident">id</span>;
 	}
@@ -1090,6 +1150,7 @@
 	<span class="ident">stime</span>: <span class="ident">f32</span>,
 	<span class="ident">frame</span>: <span class="ident">u8</span>,
 	<span class="ident">busy</span>: <span class="ident">bool</span>,
+	<span class="doccomment">/// Flag to mark whether the unit belongs to player or enemy.</span>
 	<span class="kw">pub</span> <span class="ident">player</span>: <span class="ident">bool</span>
 }
 
@@ -1366,6 +1427,7 @@
 
 <span class="kw">const</span> <span class="ident">MAGIC</span>: [<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">0xfa</span>, <span class="number">0xde</span>, <span class="number">0x00</span>, <span class="number">0xff</span>];
 <span class="kw">const</span> <span class="ident">CONT_READ</span>: [<span class="ident">u8</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="number">0xfe</span>,<span class="number">0xed</span>];
+<span class="kw">const</span> <span class="ident">MPSIG</span>: [<span class="ident">u8</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="number">0xda</span>, <span class="number">0xd7</span>];
 <span class="macro">macro_rules!</span> <span class="ident">bferr</span> {
 	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">f</span>:<span class="ident">ident</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">emsg</span>:<span class="ident">literal</span>) =&gt; {
 		{
@@ -1414,6 +1476,7 @@
 	<span class="comment">// Data Buffers.</span>
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf4</span>:[<span class="ident">u8</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>];
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf2</span>:[<span class="ident">u8</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="number">0</span>,<span class="number">0</span>];
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf1</span>:[<span class="ident">u8</span>;<span class="number">1</span>] <span class="op">=</span> [<span class="number">0</span>];
 	
 	<span class="comment">// Read MAGIC</span>
 	<span class="kw">let</span> <span class="ident">_n</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf4</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to read MAGIC bytes from world file.&quot;</span>);
@@ -1427,7 +1490,31 @@
 		<span class="macro">bferr!</span>(<span class="ident">fpath</span>, <span class="string">&quot;Could not infer world size; not specified.&quot;</span>);
 	}
 	<span class="kw">let</span> (<span class="ident">w</span>, <span class="ident">h</span>) <span class="op">=</span> (<span class="ident">buf2</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">usize</span>, <span class="ident">buf2</span>[<span class="number">1</span>] <span class="kw">as</span> <span class="ident">usize</span>);
-	
+
+	<span class="comment">// Check if movement permission data is present</span>
+	<span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf2</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to read movement permissions notifier (u16).&quot;</span>);
+	<span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="number">2</span> {
+		<span class="macro">bferr!</span>(<span class="ident">fpath</span>, <span class="string">&quot;Failed to read tile movement permissions notifier.&quot;</span>);
+	}
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tperm</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
+	<span class="kw">if</span> <span class="ident">buf2</span> <span class="op">!</span><span class="op">=</span> [<span class="number">0</span>,<span class="number">0</span>] {
+		<span class="kw">if</span> <span class="ident">buf2</span> <span class="op">!</span><span class="op">=</span> <span class="ident">MPSIG</span> {
+			<span class="macro">bferr!</span>(<span class="ident">fpath</span>, <span class="string">&quot;Invalid data at end of section. Allowed: 0xDAD7 or 0x0000&quot;</span>);
+		}
+
+		<span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf1</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to read tile list.&quot;</span>);
+		<span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="number">1</span> {
+			<span class="macro">bferr!</span>(<span class="ident">fpath</span>, <span class="string">&quot;Failed to read tile list.&quot;</span>);
+		}
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">b</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">buf1</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">usize</span>];
+		<span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="ident">b</span>).<span class="ident">expect</span>(<span class="string">&quot;Failed to read tile list.&quot;</span>);
+		<span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="ident">b</span>.<span class="ident">len</span>() {
+			<span class="macro">bferr!</span>(<span class="ident">fpath</span>, <span class="string">&quot;Failed to read tile list.&quot;</span>);
+		}
+		<span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">b</span> {
+			<span class="ident">tperm</span>.<span class="ident">insert</span>(<span class="ident">v</span>, <span class="bool-val">false</span>);
+		}
+	}
 	<span class="comment">// Read tile data. TODO: Switch to a more efficient version using mid-size buffers.</span>
 	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tdata</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
 	{
@@ -1444,6 +1531,7 @@
 		<span class="ident">map_width</span>: <span class="ident">w</span>,
 		<span class="ident">map_height</span>: <span class="ident">h</span>,
 		<span class="ident">map_tiles</span>: <span class="ident">tdata</span>,
+		<span class="ident">tile_perm</span>: <span class="ident">tperm</span>,
 		<span class="ident">show</span>: <span class="bool-val">true</span>
 	};
 
@@ -1492,8 +1580,20 @@
 	<span class="kw">return</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">uid</span>);
 }
 
+<span class="doccomment">/// Returns a vector containing units of all alive units.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">id_list</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="ident">World</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
 	<span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">keys</span>().<span class="ident">cloned</span>().<span class="ident">collect</span>()
+}
+
+<span class="doccomment">/// Returns true if the tile specified allows movement. </span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">tile_perm_at</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="ident">World</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
+	<span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> ((<span class="ident">y</span> <span class="kw">as</span> <span class="ident">usize</span>)<span class="kw-2">*</span><span class="ident">w</span>.<span class="ident">tilemap</span>.<span class="ident">map_width</span><span class="op">+</span>(<span class="ident">x</span> <span class="kw">as</span> <span class="ident">usize</span>)) <span class="op">%</span> <span class="ident">w</span>.<span class="ident">tilemap</span>.<span class="ident">map_tiles</span>.<span class="ident">len</span>();
+	<span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">tilemap</span>.<span class="ident">map_tiles</span>[<span class="ident">idx</span>];
+	<span class="kw">if</span> <span class="ident">w</span>.<span class="ident">tilemap</span>.<span class="ident">tile_perm</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>) {
+		<span class="kw-2">*</span><span class="ident">w</span>.<span class="ident">tilemap</span>.<span class="ident">tile_perm</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>).<span class="ident">unwrap</span>()
+	} <span class="kw">else</span> {
+		<span class="bool-val">true</span>
+	}
 }</code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="alesia" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
 </body></html>

@@ -19,7 +19,7 @@ fn it_works() {
     rs.map_font(0, "res/def.ttf");
     rs.map_sound(1, "res/sword.wav");
     rs.map_sound(255, "res/select.wav");
-    rs.map_music(0, "res/bgm.mp3");
+    //rs.map_music(0, "res/bgm.mp3");
     for i in 0..5 {
         for j in 0..5 {
             world::create_static(&mut w, 0, (i, j));
@@ -56,13 +56,15 @@ fn it_works() {
 fn load_map() {
     let mut rs = utils::ResourceSet::new();
     let mut w = world::World::blank();
-    rs.map_texture(0, "res/castle.png");
-    rs.map_texture(1, "res/house.png");
+    rs.map_texture(1, "res/castle.png");
+    rs.map_texture(0, "res/house.png");
     rs.map_texture(3, "res/newswords.png");
     rs.map_texture(240, "res/tiles.png");
     rs.map_texture(241, "res/select_tile.png");
     rs.map_texture(242, "res/uitex.png");
     rs.map_font(0, "res/def.ttf");
+    rs.map_sound(1, "res/sword.wav");
+    rs.map_sound(255, "res/select.wav");
     let mut ut = world::UnitType::new(3, "Swordsperson".to_string(), 10.0, 0.2,  2, 1, 0.1, 7.0);
     ut.def_anim_muted((32,48), 10, (0,0), 5.0, false);
     ut.def_anim_muted((32,48), 10, (0,48), 5.0, false);

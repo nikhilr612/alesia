@@ -149,6 +149,9 @@ impl InputHandler {
 	fn select_move_tile(&mut self, w: &World, mpos: Vector2) {
 		if self.isplrsel && !self.frozen.contains(&self.cur_id) {
 			let (tx, ty) = crate::world::tile_at(w, mpos.x, mpos.y);
+			if !crate::world::tile_perm_at(w, tx, ty) {
+				return;
+			}
 			for (i, u) in &w.units {
 				if (u.wpos.x as i32) == tx && (u.wpos.y as i32) == ty {
 					if *i == self.cur_id {

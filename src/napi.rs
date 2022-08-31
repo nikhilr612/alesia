@@ -12,6 +12,7 @@
 //! If the function returns a mutable pointer, then in case of an error a [NULL Pointer](std::ptr::null_mut) is returned.
 
 use crate::input::Order;
+use raylib::prelude::Color;
 use crate::utils::CTurnHandle;
 use crate::utils::CInitHandle;
 use crate::utils::StateListener;
@@ -94,6 +95,15 @@ create_release!(alsFreeStateListener, StateListener);
 
 #[no_mangle]
 #[allow(missing_docs)]
+pub extern "C" fn alsnFreeVec(v: *mut Vec<u8>) {
+	check_nonnull!(v, "warning [napi]: Vec_u8 pointer is NULL");
+	unsafe {
+		Box::from_raw(v);
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
 pub extern "C" fn alsMapTexture(rs: *mut ResourceSet, id: u8, path: *const c_char) {
 	check_nonnull!(rs, "fatal [napi]: Pointer to ResourceSet is NULL");
 	check_nonnull!(path, "fatal [napi]: Pointer to ResourceSet Path String is NULL");
@@ -149,7 +159,7 @@ pub extern "C" fn alsBeginS_Display(sw: i32, sh: i32, t: *const c_char, rs: *mut
 #[no_mangle]
 /// Creates the display and begins the game.
 /// ResourceSet, World, and StateListener are deallocated when this method returns.
-pub extern "C" fn alsBegin_Display(sw: i32, sh: i32, t: *const c_char, rs: *mut ResourceSet, w: *mut World, sl: *mut StateListener) {
+pub extern "C" fn alsBegin_Display(sw: i32, sh: i32, vsync: bool, fps: u32, t: *const c_char, rs: *mut ResourceSet, w: *mut World, sl: *mut StateListener, mvl: f32) {
 	check_nonnull!(rs, "fatal [napi]: Pointer to ResourceSet is NULL");
 	check_nonnull!(w, "fatal [napi]: Pointer to world is NULL");
 	check_nonnull!(t, "fatal [napi]: Pointer to Display Title String is NULL");
@@ -162,7 +172,7 @@ pub extern "C" fn alsBegin_Display(sw: i32, sh: i32, t: *const c_char, rs: *mut 
     unsafe {
 		let wb = Box::from_raw(w);
 		let rsb = Box::from_raw(rs);
-		let d = Display::new_s(sw, sh, p);
+		let d = Display::new(sw, sh, fps, vsync, p, Color::BLACK, mvl);
 		let s = Box::from_raw(sl);
 		d.begin(*rsb, *wb, *s);
 	}   
@@ -230,6 +240,27 @@ pub extern "C" fn alsnGetUnitHealth(w: *mut World, uid: u8) -> f32 {
 	}
 }
 
+
+#[no_mangle]
+/// Getter for the x position of the unit with specified ID.
+pub extern "C" fn alsnGetUnitX(w: *const world::Unit) -> f32 {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", -1.0);
+	unsafe {
+		let w = &*w;
+		w.wpos.x
+	}
+}
+
+#[no_mangle]
+/// Getter for the x position of the unit with specified ID.
+pub extern "C" fn alsnGetUnitY(w: *const world::Unit) -> f32 {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", -1.0);
+	unsafe {
+		let w = &*w;
+		w.wpos.y
+	}
+}
+
 #[no_mangle]
 /// Get an immutable (i.e, `readonly`) reference to the unit with the specified id.
 /// # Paincs
@@ -244,6 +275,16 @@ pub extern "C" fn alsnUnitRef(w: *mut World, uid: u8) -> *const world::Unit {
 		let w = &*w;
 		let u = w.units.get(&uid).expect("Invalid unit ID");
 		u
+	}
+}
+
+#[no_mangle]
+/// Returns true if the unit with given id is an enemy unit.
+pub extern "C" fn alsnIsUnitFoe(uref: *const world::Unit) -> bool {
+	check_nonnull!(uref, "fatal [napi]: Pointer to UnitRef is NULL", false);
+	unsafe {
+		let u = &*uref;
+		u.player
 	}
 }
 
@@ -274,5 +315,87 @@ pub extern "C" fn alsSpawnUnit(w: *mut World, tid: u8, tx: i32, ty: i32, tint: i
 	unsafe {
 		let w = &mut *w;
 		crate::world::spawn_unit(w, tid, (tx, ty), tint, plr)
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsIdList(w: *const World) -> *mut Vec<u8> {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", ptr::null_mut());
+	unsafe{Box::into_raw(Box::new(world::id_list(&*w)))}
+}
+
+#[no_mangle]
+/// Return length of byte vector.
+pub extern "C" fn alsnVecLen(u: *const Vec<u8>) -> usize {
+	unsafe{(&*u).len()}
+}
+
+#[no_mangle]
+/// Return byte value at index `elm` in `Vec<u8>`
+pub extern "C" fn alsnVecAt(u: *const Vec<u8>, elm: usize) -> u8 {
+	unsafe{(&*u)[elm]}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsMapSound(rs: *mut ResourceSet, id: u8, path: *const c_char) {
+	check_nonnull!(rs, "fatal [napi]: Pointer to ResourceSet is NULL");
+	check_nonnull!(path, "fatal [napi]: Pointer to ResourceSet Path String is NULL");
+	//Copy String
+	let p = unsafe { CStr::from_ptr(path) };
+    let p = p.to_str().map(|s| s.to_owned()).expect("ResourceSet path is not UtfString");
+    
+    unsafe {
+    	let r = &mut *rs;
+    	r.map_sound(id, &p);
+    }
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsLoadMap(w: *mut World, fpath: *const c_char) -> bool {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", false);
+	check_nonnull!(fpath, "fatal [napi]: Level file path string is NULL", false);
+	let p = unsafe { CStr::from_ptr(fpath) };
+    let p = p.to_str().map(|s| s.to_owned()).expect("ResourceSet path is not UtfString");
+    unsafe {
+    	let w = &mut *w;
+    	world::load_world(w, &p)
+    }
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsMapMusic(rs: *mut ResourceSet, id: u8, path: *const c_char) {
+	check_nonnull!(rs, "fatal [napi]: Pointer to ResourceSet is NULL");
+	check_nonnull!(path, "fatal [napi]: Pointer to ResourceSet Path String is NULL");
+	//Copy String
+	let p = unsafe { CStr::from_ptr(path) };
+    let p = p.to_str().map(|s| s.to_owned()).expect("ResourceSet path is not UtfString");
+    
+    unsafe {
+    	let r = &mut *rs;
+    	r.map_music(id, &p);
+    }
+}
+
+#[no_mangle]
+/// Checks if the specified unit ID is valid.
+pub extern "C" fn alsVerifyUID(w: *const World, uid: u8) -> bool {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", false);
+	unsafe {
+		let w = &*w;
+		world::is_uid_valid(w, uid)
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsTilePermAt(w: *const World, x: i32, y: i32) -> bool {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", false);
+	unsafe {
+		let w = &*w;
+		world::tile_perm_at(w, x, y)
 	}
 }

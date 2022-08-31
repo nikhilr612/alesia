@@ -20,6 +20,13 @@ class WorldFile:
 		self.height = height;
 		self.file.write(bytes([self.width, self.height]));
 
+	def put_tilelist(self, ls):
+		if ls == None:
+			self.file.write(bytes([0,0]));
+		else:
+			self.file.write(bytes([0xda,0xd7, len(ls)]));
+			self.file.write(bytes(ls));
+
 	def dump_tdata(self, tdata):
 		self.file.write(bytearray(tdata));
 
@@ -37,6 +44,12 @@ class IdempotentIdxMap:
 	def __init__(self, d):
 		self.d = d;
 
+	def get(self, key, df=None):
+		return self.d.get(key, df) if self.d is not None else None;
+
+	def __repr__(self):
+		return self.d.__repr__();
+
 	def __getitem__(self, key):
 		if self.d is None or key not in self.d:
 			return key
@@ -46,6 +59,7 @@ class IdempotentIdxMap:
 def main(name, w, h, m=None):
 	m = IdempotentIdxMap(m);
 	with WorldFile(name + ".alw", w, h) as w, open(name+"_map.csv",'r') as ter, open(name+"_bldg.csv") as bu:
+		w.put_tilelist(m.get('blocked'));
 		# Terrain data;
 		for l in ter:
 			i = [m[int(s.strip())] for s in l.split(",")];

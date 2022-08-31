@@ -9,14 +9,6 @@ use raylib::RaylibHandle;
 use raylib::prelude::Texture2D;
 use raylib::prelude::Sound;
 
-/// Struct for storing, and managing resources such as textures and cues.
-/// # Example
-/// ```
-/// use alesia::utils::ResourceSet;
-/// let mut rs = ResourceSet::new();
-///	rs.map_texture(0, "mypic.png");
-/// ```
-
 enum ResType {
 	Tex,
 	Fnt,
@@ -24,6 +16,13 @@ enum ResType {
 	Mus
 }
 
+/// Struct for storing, and managing resources such as textures and cues.
+/// # Example
+/// ```
+/// use alesia::utils::ResourceSet;
+/// let mut rs = ResourceSet::new();
+///	rs.map_texture(0, "mypic.png");
+/// ```
 pub struct ResourceSet {
 	to_load: Vec<(u8, ResType, String)>,
 	texs: HashMap<u8, Texture2D>,
@@ -117,11 +116,15 @@ impl ResourceSet {
 		}
 	}
 
-	///
+	/// Map a sound to an internal unsigned byte identifier
+	/// Certain byte identifiers enumerated below are reserved:
+	/// * 255 ('0xff') - The sound played when any unit is selected by the player.
+	/// The method does not load sounds, but stores id-path mappings so that requisite files may be loaded once initialization is complete.
 	pub fn map_sound(&mut self, id: u8, path: &str) {
 		self.to_load.push((id, ResType::Snd, path.to_string()));
 	}
 
+	/// Return the sound (if it exists) with the specified id.
 	pub fn get_sound(&self, id: u8) -> &Sound {
 		match self.sounds.get(&id) {
 			Some(snd) => snd,
@@ -129,13 +132,13 @@ impl ResourceSet {
 		}
 	}
 
+	/// Map a music track to an internal unsigned byte identifier
+	/// The method does not load music, but stores id-path mappings so that requisite files may be loaded once initialization is complete.
 	pub fn map_music(&mut self, id: u8, path: &str) {
-		if id == 0xff {
-			eprintln!("Warning: Illegal id [=255] for music track {}", path);
-		}
 		self.to_load.push((id, ResType::Mus, path.to_string()));
 	}
 
+	/// Return the sound (if it exists) with the specified id.
 	pub fn get_music(&mut self, id: u8) -> Option<&mut Music> {
 		self.tracks.get_mut(&id)
 	}

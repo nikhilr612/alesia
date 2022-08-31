@@ -8,6 +8,8 @@
 //! d.begin_s(ResourceSet::new(), World::blank()); // Blank for example's sake
 //! ```
 
+const BOX_STATICS: bool = false;
+
 use raylib::math::Rectangle;
 use raylib::texture::Texture2D;
 use raylib::prelude::RaylibTexture2D;
@@ -38,26 +40,29 @@ pub struct Display {
 	vsync: bool,
 	/// Title of the window
 	title: String,
+	/// Master Volume
+	mvolume: f32,
 	/// Clear colour
 	col: Color
 }
 
 impl Display {
 	/// Constructor method. Returns Display struct with specified width, height, title, target fps, vsync and clear colour.
-	pub fn new(width: i32, height: i32, fps: u32, vsync: bool, title: &str, col: Color) -> Display{
+	pub fn new(width: i32, height: i32, fps: u32, vsync: bool, title: &str, col: Color, mvolume: f32) -> Display{
 		Display {
 			width: width,
 			height: height,
 			title: title.to_string(),
 			fps: fps,
 			vsync: vsync,
+			mvolume: mvolume,
 			col: col
 		}
 	}
 
 	/// Constructor method. Returns display struct with specified width, height, title, 60fps, vsync-enabled and black background.
 	pub fn new_s(width: i32, height: i32, title: &str) -> Display {
-		Display::new(width, height, 60, true, title, Color::BLACK)
+		Display::new(width, height, 60, true, title, Color::BLACK, 1.0)
 	}
 
 	/// Overload for `Display.begin`, uses default state listener, which ignores all notifications.
@@ -85,6 +90,7 @@ impl Display {
 		println!("info [alesia/display.rs] : Loading resources from resource set.");
 		crate::utils::load_all(&mut rs, &mut rl, &thread);
 		rl.set_target_fps(self.fps);
+		rlau.set_master_volume(self.mvolume);
 		sl.notify_init();
 
 		if let Some(a) = rs.get_music(w.bgm_id) {
@@ -162,7 +168,12 @@ impl Display {
 		}
 		for st in &w.statics {
 			let (tid, x, y) = st.prep_draw(&w);
-			d.draw_texture(rs.get_texture(tid), x, y, Color::WHITE)
+			let tex = rs.get_texture(tid);
+			let (x,y) = (x, y -tex.height() + w.get_tile_size().1);
+			d.draw_texture(tex, x, y, Color::WHITE);
+			if BOX_STATICS {
+				d.draw_rectangle_lines(x, y, tex.width(), tex.height(), Color::WHITE);
+			}
 		}
 		for (_id, sp) in &w.units {
 			let (tid, rec, pos, sif) = sp.prep_draw(&w);

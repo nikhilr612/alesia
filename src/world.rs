@@ -13,6 +13,11 @@ use raylib::math::Rectangle;
 use raylib::prelude::Color;
 use crate::input::Order;
 
+/*enum MovePerm {
+	Allowed,
+	Prohibited
+}*/
+
 #[derive(Debug)]
 /// Plain struct to store map data
 struct TileMap {
@@ -22,6 +27,8 @@ struct TileMap {
 	map_height: usize,
 	/// Flattened array consisting of the tiles of the map
  	map_tiles: Vec<u8>,
+ 	/// HashMap to map tile id to corresponding movement permissions.
+ 	tile_perm: HashMap<u8, bool>,
 	/// Flag to show or hide map.	
 	show: bool
 }
@@ -32,6 +39,7 @@ impl TileMap {
 			map_width: 0,
 			map_height: 0,
 			map_tiles: vec![],
+			tile_perm: HashMap::new(),
 			show: false
 		}
 	}
@@ -117,6 +125,7 @@ impl World {
 		return wots_f(self, self.cam_wx, self.cam_wy);
 	}
 
+	/// Get size of tiles in tileset as a tuple of (width, height)
 	pub fn get_tile_size(&self) -> (i32, i32) {
 		return self.tile_size;
 	}
@@ -137,6 +146,7 @@ impl World {
 		return self.tilemap.show;
 	}
 
+	/// Set the music id for the background music.
 	pub fn set_bgm(&mut self, id: u8) {
 		self.bgm_id = id;
 	}
@@ -339,7 +349,8 @@ pub struct Unit {
 	stime: f32,
 	frame: u8,
 	busy: bool,
-	player: bool
+	/// Flag to mark whether the unit belongs to player or enemy.
+	pub player: bool
 }
 
 impl Unit {
@@ -615,6 +626,7 @@ pub fn is_tile_atrange(t1: (i32, i32), t2: (i32, i32), r: u8) -> bool{
 
 const MAGIC: [u8; 4] = [0xfa, 0xde, 0x00, 0xff];
 const CONT_READ: [u8; 2] = [0xfe,0xed];
+const MPSIG: [u8; 2] = [0xda, 0xd7];
 macro_rules! bferr {
 	($f:ident, $emsg:literal) => {
 		{
@@ -663,6 +675,7 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 	// Data Buffers.
 	let mut buf4:[u8; 4] = [0,0,0,0];
 	let mut buf2:[u8; 2] = [0,0];
+	let mut buf1:[u8;1] = [0];
 	
 	// Read MAGIC
 	let _n = f.read(&mut buf4).expect("Failed to read MAGIC bytes from world file.");
@@ -676,7 +689,31 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 		bferr!(fpath, "Could not infer world size; not specified.");
 	}
 	let (w, h) = (buf2[0] as usize, buf2[1] as usize);
-	
+
+	// Check if movement permission data is present
+	let n = f.read(&mut buf2).expect("Failed to read movement permissions notifier (u16).");
+	if n < 2 {
+		bferr!(fpath, "Failed to read tile movement permissions notifier.");
+	}
+	let mut tperm = HashMap::new();
+	if buf2 != [0,0] {
+		if buf2 != MPSIG {
+			bferr!(fpath, "Invalid data at end of section. Allowed: 0xDAD7 or 0x0000");
+		}
+
+		let n = f.read(&mut buf1).expect("Failed to read tile list.");
+		if n < 1 {
+			bferr!(fpath, "Failed to read tile list.");
+		}
+		let mut b = vec![0; buf1[0] as usize];
+		let n = f.read(&mut b).expect("Failed to read tile list.");
+		if n < b.len() {
+			bferr!(fpath, "Failed to read tile list.");
+		}
+		for v in b {
+			tperm.insert(v, false);
+		}
+	}
 	// Read tile data. TODO: Switch to a more efficient version using mid-size buffers.
 	let mut tdata = Vec::new();
 	{
@@ -693,6 +730,7 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 		map_width: w,
 		map_height: h,
 		map_tiles: tdata,
+		tile_perm: tperm,
 		show: true
 	};
 
@@ -739,4 +777,20 @@ pub fn prep_tiledraw(w: &World, x: i32, y: i32, n: i32) -> (Vector2, Vector2) {
 /// Check if the there exists a unit with the specified id.
 pub fn is_uid_valid(w: &World, uid: u8) -> bool {
 	return w.units.contains_key(&uid);
+}
+
+/// Returns a vector containing units of all alive units.
+pub fn id_list(w: &World) -> Vec<u8> {
+	w.units.keys().cloned().collect()
+}
+
+/// Returns true if the tile specified allows movement. 
+pub fn tile_perm_at(w: &World, x: i32, y: i32) -> bool {
+	let idx = ((y as usize)*w.tilemap.map_width+(x as usize)) % w.tilemap.map_tiles.len();
+	let t = w.tilemap.map_tiles[idx];
+	if w.tilemap.tile_perm.contains_key(&t) {
+		*w.tilemap.tile_perm.get(&t).unwrap()
+	} else {
+		true
+	}
 }

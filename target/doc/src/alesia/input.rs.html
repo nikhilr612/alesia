@@ -184,6 +184,9 @@
 <span id="179">179</span>
 <span id="180">180</span>
 <span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Handles User Input.</span>
 
 <span class="kw">use</span> <span class="ident">raylib::audio::RaylibAudio</span>;
@@ -335,6 +338,9 @@
 	<span class="kw">fn</span> <span class="ident">select_move_tile</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="ident">World</span>, <span class="ident">mpos</span>: <span class="ident">Vector2</span>) {
 		<span class="kw">if</span> <span class="self">self</span>.<span class="ident">isplrsel</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">frozen</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cur_id</span>) {
 			<span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::world::tile_at</span>(<span class="ident">w</span>, <span class="ident">mpos</span>.<span class="ident">x</span>, <span class="ident">mpos</span>.<span class="ident">y</span>);
+			<span class="kw">if</span> <span class="op">!</span><span class="ident"><span class="kw">crate</span>::world::tile_perm_at</span>(<span class="ident">w</span>, <span class="ident">tx</span>, <span class="ident">ty</span>) {
+				<span class="kw">return</span>;
+			}
 			<span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">u</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">w</span>.<span class="ident">units</span> {
 				<span class="kw">if</span> (<span class="ident">u</span>.<span class="ident">wpos</span>.<span class="ident">x</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">==</span> <span class="ident">tx</span> <span class="op">&amp;&amp;</span> (<span class="ident">u</span>.<span class="ident">wpos</span>.<span class="ident">y</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">==</span> <span class="ident">ty</span> {
 					<span class="kw">if</span> <span class="kw-2">*</span><span class="ident">i</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">cur_id</span> {

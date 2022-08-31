@@ -83,6 +83,8 @@
 <span id="78">78</span>
 <span id="79">79</span>
 <span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Alesia, a straight-forward game engine in rust</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
 
@@ -141,13 +143,15 @@
 <span class="kw">fn</span> <span class="ident">load_map</span>() {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rs</span> <span class="op">=</span> <span class="ident">utils::ResourceSet::new</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">w</span> <span class="op">=</span> <span class="ident">world::World::blank</span>();
-    <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">0</span>, <span class="string">&quot;res/castle.png&quot;</span>);
-    <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">1</span>, <span class="string">&quot;res/house.png&quot;</span>);
+    <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">1</span>, <span class="string">&quot;res/castle.png&quot;</span>);
+    <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">0</span>, <span class="string">&quot;res/house.png&quot;</span>);
     <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">3</span>, <span class="string">&quot;res/newswords.png&quot;</span>);
     <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">240</span>, <span class="string">&quot;res/tiles.png&quot;</span>);
     <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">241</span>, <span class="string">&quot;res/select_tile.png&quot;</span>);
     <span class="ident">rs</span>.<span class="ident">map_texture</span>(<span class="number">242</span>, <span class="string">&quot;res/uitex.png&quot;</span>);
     <span class="ident">rs</span>.<span class="ident">map_font</span>(<span class="number">0</span>, <span class="string">&quot;res/def.ttf&quot;</span>);
+    <span class="ident">rs</span>.<span class="ident">map_sound</span>(<span class="number">1</span>, <span class="string">&quot;res/sword.wav&quot;</span>);
+    <span class="ident">rs</span>.<span class="ident">map_sound</span>(<span class="number">255</span>, <span class="string">&quot;res/select.wav&quot;</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ut</span> <span class="op">=</span> <span class="ident">world::UnitType::new</span>(<span class="number">3</span>, <span class="string">&quot;Swordsperson&quot;</span>.<span class="ident">to_string</span>(), <span class="number">10.0</span>, <span class="number">0.2</span>,  <span class="number">2</span>, <span class="number">1</span>, <span class="number">0.1</span>, <span class="number">7.0</span>);
     <span class="ident">ut</span>.<span class="ident">def_anim_muted</span>((<span class="number">32</span>,<span class="number">48</span>), <span class="number">10</span>, (<span class="number">0</span>,<span class="number">0</span>), <span class="number">5.0</span>, <span class="bool-val">false</span>);
     <span class="ident">ut</span>.<span class="ident">def_anim_muted</span>((<span class="number">32</span>,<span class="number">48</span>), <span class="number">10</span>, (<span class="number">0</span>,<span class="number">48</span>), <span class="number">5.0</span>, <span class="bool-val">false</span>);

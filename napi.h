@@ -20,6 +20,8 @@ typedef struct ALS_UnitType ALS_UnitType;
 
 typedef struct ALS_OrderList ALS_OrderList;
 
+typedef struct ALS_IdList ALS_IdList;
+
 typedef struct ALS_World ALS_World;
 
 typedef void (*ALS_CInitHandle)(void);
@@ -34,10 +36,13 @@ void alsBeginS_Display(int32_t sw,
 
 void alsBegin_Display(int32_t sw,
                       int32_t sh,
+                      bool vsync,
+                      uint32_t fps,
                       const char *t,
                       struct ALS_ResourceSet *rs,
                       struct ALS_World *w,
-                      struct ALS_StateListener *sl);
+                      struct ALS_StateListener *sl,
+                      float mvl);
 
 void alsBindInit(struct ALS_StateListener *sl, ALS_CInitHandle f);
 
@@ -56,7 +61,15 @@ void alsDefAnim(struct ALS_UnitType *u,
                 float fr,
                 bool flip);
 
+struct ALS_IdList *alsIdList(const struct ALS_World *w);
+
+bool alsLoadMap(struct ALS_World *w, const char *fpath);
+
 void alsMapFont(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
+
+void alsMapMusic(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
+
+void alsMapSound(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
 
 void alsMapTexture(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
 
@@ -82,7 +95,19 @@ uint8_t alsSpawnUnit(struct ALS_World *w,
                      int32_t tint,
                      bool plr);
 
+bool alsTilePermAt(const struct ALS_World *w, int32_t x, int32_t y);
+
+bool alsVerifyUID(const struct ALS_World *w, uint8_t uid);
+
+void alsnFreeVec(struct ALS_IdList *v);
+
 float alsnGetUnitHealth(struct ALS_World *w, uint8_t uid);
+
+float alsnGetUnitX(const struct ALS_Unit *w);
+
+float alsnGetUnitY(const struct ALS_Unit *w);
+
+bool alsnIsUnitFoe(const struct ALS_Unit *uref);
 
 void alsnPushAttackOrder(struct ALS_OrderList *i,
                          uint8_t uid,
@@ -93,5 +118,9 @@ void alsnPushAttackOrder(struct ALS_OrderList *i,
 void alsnPushMoveOrder(struct ALS_OrderList *i, uint8_t uid, int32_t tx, int32_t ty);
 
 const struct ALS_Unit *alsnUnitRef(struct ALS_World *w, uint8_t uid);
+
+uint8_t alsnVecAt(const struct ALS_IdList *u, size_t elm);
+
+size_t alsnVecLen(const struct ALS_IdList *u);
 
 #endif /* als_bindings_h */
