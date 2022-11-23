@@ -9,7 +9,56 @@
 //! ```
 
 const BOX_STATICS: bool = false;
+const GRAYCOL: Color = Color {
+        r: 200,
+        g: 150,
+        b: 200,
+        a: 150,
+    };
+const XOFF: f32 = 20.0;
+const HPREC: Rectangle = Rectangle {
+	x: XOFF,
+	y: 40.0,
+	width: 120.0,
+	height: 20.0
+};
 
+const TITLE_OFF: f32 = 75.0;
+
+const INTRO_OFF: f32 = 165.0;
+
+const PROHIBITED_TCOL: Color = Color {
+	r: 190,
+	g: 116,
+	b: 34,
+	a: 127,
+};
+
+const ALLOWED_TCOL: Color = Color {
+	r: 244,
+	g: 180,
+	b: 112,
+	a: 127,
+};
+
+const HEAL_TCOL: Color = Color {
+	r: 185, g: 252, b: 61, 
+	a: 127
+};
+
+const DAMAGE_TCOL: Color = Color {
+	r: 121, g: 14, b: 171,
+	a: 127
+};
+
+const ENEMY_TCOL: Color = Color {
+	r: 200, g: 36, b: 36, a: 127
+};
+
+const PLAYER_TCOL: Color = Color {
+	r: 44, g: 72, b: 224, a: 127
+};
+use raylib::text::Font;
 use raylib::math::Rectangle;
 use raylib::texture::Texture2D;
 use raylib::prelude::RaylibTexture2D;
@@ -114,9 +163,41 @@ impl Display {
 				}
 				// HUD Goes here.
 				d.draw_fps(0,0);
+
 				if is.show {
-					d.draw_texture(rs.get_texture(0xf2), 0,0, Color::WHITE);
-					d.draw_text_ex(rs.get_default_font(), &format!("{}", is), Vector2::new(5.0,20.0), 22.0, 1.2, Color::BLACK);
+					let rtex = rs.get_texture(0xf2);
+					d.draw_texture(rtex, 0,0, Color::WHITE);
+					d.draw_rectangle_lines_ex(HPREC, 3, Color::BLACK);
+					let (h, mh) = crate::world::_unit_health(&w, is.cur_id);
+					let hfrac = (h as f32) / (mh as f32);
+					let width = (116.0*(hfrac)) as i32;
+					let col = Color {
+						r: (255.0*(1.0-hfrac)) as u8,
+						g: (255.0*hfrac) as u8,
+						b: 0,
+						a: 255
+					};
+					d.draw_rectangle((XOFF as i32)+2, 42, width, 15, col);
+					d.draw_text_ex(rs.get_default_font(), &format!("HP: {} / {}", h, mh), Vector2::new(XOFF,64.0), 22.0, 1.0, Color::BLACK);
+					d.draw_text_ex(rs.get_default_font(), &format!("{}", is), Vector2::new(XOFF,20.0), 22.0, 1.2, Color::BLACK);
+					if is.show_info {
+						let tex = rs.get_texture(0xf8);
+						d.draw_texture(tex, 0, rtex.height(), Color::WHITE);
+						match crate::world::_unit_info(&w, is.cur_id) {
+							Some(text) => {
+								d.draw_text_ex(rs.get_default_font(), text, Vector2::new(XOFF, rtex.height() as f32 + 20.0), 22.0, 1.0, Color::BLACK);
+							},
+							None => {}
+						}
+						self._draw_minimap(&mut d, &w);
+					}
+				}
+				if is.get_state() == 7 {
+					self._draw_window(0xf5, w.map_title(), w.intro_text(), &rs, &mut d);
+				} else if is.get_state() == 5 {
+					self._draw_window(0xf6, "Victory is thine", w.victory_text(), &rs, &mut d);
+				} else if is.get_state() == 6 {
+					self._draw_window(0xf6, "'Tis defeat", w.defeat_text(), &rs, &mut d);
 				}
 			}
 			// Save screenshot
@@ -132,6 +213,38 @@ impl Display {
 		}
 	}
 
+	fn _draw_minimap(&self, d: &mut RaylibDrawHandle<'_>, world: &World) {
+		let total_side = self.width / 4;
+		let xoff = self.width - total_side;
+		let (w, h) = world.map_size();
+		let side: i32 = total_side / w as i32;
+		for i in 0..w as i32 {
+			for j in 0..h as i32 {
+				let rx: i32 = xoff + i*side;
+				let ry: i32 = j*side;
+				d.draw_rectangle(rx, ry, side, side, _tile_colour(i, j, world))
+			}
+		}
+		for (_id, u) in &world.units {
+			let (i,j) = (u.wpos.x as i32, u.wpos.y as i32);
+			let (cx, cy) = (xoff + i*side + side/2, j * side + side/2);
+			if u.player {
+				d.draw_ellipse(cx, cy, (side/3) as f32, (side/3) as f32, PLAYER_TCOL);
+			} else {
+				d.draw_ellipse(cx, cy, (side/3) as f32, (side/3) as f32, ENEMY_TCOL);
+			}
+		}
+	}
+
+	fn _draw_window(&self, id: u8, title: &str, body: &str, rs: &ResourceSet, d: &mut RaylibDrawHandle<'_>) {
+		let tex = rs.get_texture(id);
+		let corner = Vector2::new(0.5*(self.width - tex.width()) as f32, 0.5*(self.height - tex.height()) as f32);
+		d.draw_texture_v(tex, corner, Color::WHITE);
+		let fnt = rs.get_default_font();
+		self._draw_text_centered(d, fnt, body, 23.0, 1.0, INTRO_OFF + corner.y);
+		self._draw_text_centered(d, fnt, title, 32.0, 1.0, TITLE_OFF + corner.y);
+	}
+
 	fn _draw_tile(&self, w: &World, mut rec: Rectangle, tset: &Texture2D, tx: i32, ty: i32, d: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>, n: i32) {
 		let (wi, hi) = w.map_size();
 		if tx >= 0 && tx < wi as i32 && ty >= 0 && ty < hi as i32 {
@@ -140,6 +253,12 @@ impl Display {
 			rec.y = rpos.y;
 			d.draw_texture_rec(tset, rec, pos, Color::WHITE);
 		}
+	}
+
+	fn _draw_text_centered(&self, d: &mut RaylibDrawHandle<'_>, fnt: &Font, text: &str, fntsize: f32, spacing: f32, yoff: f32) {
+		let s = raylib::core::text::measure_text_ex(fnt, text, fntsize, spacing);
+		let pos = Vector2::new(0.5*((self.width as f32) - s.x), yoff);
+		d.draw_text_ex(fnt, text, pos, fntsize, spacing, Color::BLACK);
 	}
 
 	#[inline]
@@ -166,30 +285,76 @@ impl Display {
 				}
 			}
 		}
-		for st in &w.statics {
-			let (tid, x, y) = st.prep_draw(&w);
-			let tex = rs.get_texture(tid);
-			let (x,y) = (x, y -tex.height() + w.get_tile_size().1);
-			d.draw_texture(tex, x, y, Color::WHITE);
-			if BOX_STATICS {
-				d.draw_rectangle_lines(x, y, tex.width(), tex.height(), Color::WHITE);
-			}
-		}
 		for (_id, sp) in &w.units {
-			let (tid, rec, pos, sif) = sp.prep_draw(&w);
+			let (tid, rec, pos, sif) = sp.prep_draw(w);
 			if let Some((id, lp)) = sif {
 				let s = rs.get_sound(id);
 				if sp.nascent_state() || lp{
 					if !rlau.is_sound_playing(s) {rlau.play_sound(s)};
 				}
 			}
-			d.draw_texture_rec(rs.get_texture(tid), rec, pos, if is.show && *_id == is.cur_id {Color::YELLOW} else {sp.get_tint()});
+			let rcol = if is.show && *_id == is.cur_id {Color::YELLOW} 
+						else if is.get_state() == 0 && is.is_frozen(&*_id) {Color::GRAY}
+						else {sp.get_tint()};
+			d.draw_texture_rec(rs.get_texture(tid), rec, pos, rcol);
+		}
+		for st in &w.statics {
+			let (tid, x, y) = st.prep_draw(w);
+			let (mut bw, mut bh) = (0,0);
+			if rs.is_texture_region(tid) {
+				let (tex, rec) = rs.get_texture_region(tid);
+				bw = rec.width as i32;
+				bh = rec.height as i32;
+				let pos = Vector2::new(x as f32, y as f32 - rec.height + w.get_tile_size().1 as f32);
+				d.draw_texture_rec(tex, rec, pos, Color::WHITE);
+			} else {
+				let tex = rs.get_texture(tid);
+				let (x,y) = (x, y -tex.height() + w.get_tile_size().1);
+				d.draw_texture(tex, x, y, Color::WHITE);
+			}
+			if BOX_STATICS {
+				d.draw_rectangle_lines(x, y, bw, bh, Color::WHITE);
+			}
+		}
+		for proj in &w.projectiles {
+			let (st, en) = proj._prep_draw(w);
+			//println!("Drawing line from: {:?}, to: {:?}", st, en);
+			d.draw_line_ex(st, en, 1.5, Color::BLACK);
 		}
 		// Select Tile.
 		if is.show {
-			let t = crate::world::tile_at(&w,r.x, r.y);
-			let u = crate::world::wots(&w,t.0, t.1);
+			let t = crate::world::tile_at(w,r.x, r.y);
+			let u = crate::world::wots(w,t.0, t.1);
 			d.draw_texture(rs.get_texture(0xf1), u.0, u.1, Color::WHITE);
+			if is.get_state() == 1 {
+				let (sx, ex, sy, ey) = is._boxrange();
+				for y in sy..=ey {
+					for x in sx..=ex {
+						let t = is.tile_shade(x, y);
+						if !crate::world::tile_type_at(w, x, y).allowed() {
+							continue;
+						}
+						if t != 0 {
+							let u = crate::world::wots(&w, x, y);
+							d.draw_texture(rs.get_texture(0xf2 + t), u.0, u.1, Color::WHITE);
+						}
+					}	
+				}
+			} else if is.get_state() == 4{
+				let (sx, ex, sy, ey) = is._atkrange();
+				for y in sy..=ey {
+					for x in sx..=ex {
+						let v = is._inrange(x, y);
+						if v == 1 {
+							let u = crate::world::wots(w, x, y);
+							d.draw_texture(rs.get_texture(0xf4), u.0, u.1, Color::WHITE);
+						} else if v == -1 {
+							let (tid, rec, pos) = w.units.get(&is.cur_id).unwrap()._stand_frame(w, x, y);
+							d.draw_texture_rec(rs.get_texture(tid), rec, pos, GRAYCOL);
+						}
+					}	
+				} 
+			}
 		}
 	}
 }
@@ -216,5 +381,15 @@ fn _cam_control(w: &mut World, rl: &RaylibHandle) {
 	}
 	if rl.is_key_down(KeyboardKey::KEY_DOWN) {
 		w.cam_wy += 4.0 * rl.get_frame_time();
+	}
+}
+
+fn _tile_colour(x: i32, y: i32, w: &World) -> &Color {
+	let tty = crate::world::tile_type_at(w, x, y);
+	match tty {
+		crate::world::TileType::Prohibited => &PROHIBITED_TCOL,
+		crate::world::TileType::Allowed => &ALLOWED_TCOL,
+		crate::world::TileType::Heal => &HEAL_TCOL,
+		crate::world::TileType::Damage => &DAMAGE_TCOL
 	}
 }

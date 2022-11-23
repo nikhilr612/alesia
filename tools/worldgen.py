@@ -27,6 +27,15 @@ class WorldFile:
 			self.file.write(bytes([0xda,0xd7, len(ls)]));
 			self.file.write(bytes(ls));
 
+	def put_bytes(self, bs):
+		self.file.write(bytes([len(bs)]));
+		self.file.write(bytes(bs));
+
+	def put_string(self, s):
+		l = len(s);
+		self.file.write(bytes([(l & 0xff00) >> 8, l & 0xff]));
+		self.file.write(bytes(s.encode('ascii')));
+
 	def dump_tdata(self, tdata):
 		self.file.write(bytearray(tdata));
 
@@ -60,12 +69,16 @@ def main(name, w, h, m=None):
 	m = IdempotentIdxMap(m);
 	with WorldFile(name + ".alw", w, h) as w, open(name+"_map.csv",'r') as ter, open(name+"_bldg.csv") as bu:
 		w.put_tilelist(m.get('blocked'));
+		w.put_bytes(m.get('heal', []));
+		w.put_bytes(m.get('damage', []));
 		# Terrain data;
 		for l in ter:
 			i = [m[int(s.strip())] for s in l.split(",")];
 			w.dump_tdata(i);
-		# Padding
-		w.pad(6);
+		w.put_string(m.get('title', name));
+		w.put_string(m.get('intro', ''));
+		w.put_string(m.get('victory', 'You won'));
+		w.put_string(m.get('defeat', 'You lost'));
 		# Objects
 		ty = 0;
 		for l in bu:

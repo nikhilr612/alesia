@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Order","An enum containing all possible orders followed by units."]],"struct":[["InputHandler","Plain struct to store state variables related to user input."]]});
+initSidebarItems({"enum":[["Order","An enum containing all possible orders followed by units."]]});

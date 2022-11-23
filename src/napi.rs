@@ -71,13 +71,13 @@ pub extern "C" fn  alsBlank_World() -> *mut World {
 
 #[allow(missing_docs)]
 #[no_mangle]
-pub extern "C" fn alsNewUnitType(tid: u8, name: *const c_char, health: f32, mov_rate: f32, movt: u8, ran: u8, atk: f32, adur: f32) -> *mut world::UnitType {
+pub extern "C" fn alsNewUnitType(tid: u8, name: *const c_char, health: f32, mov_rate: f32, movt: u8, ran: u8, adur: f32) -> *mut world::UnitType {
 	check_nonnull!(name, "fatal [napi]: Pointer to UnitType display name String is NULL", ptr::null_mut());
 	//Convert String
 	let p = unsafe { CStr::from_ptr(name) };
     let p = p.to_str().map(|s| s.to_owned()).expect("UnitType display name is not UtfString");
 	
-	let ut = world::UnitType::new(tid, p, health, mov_rate, movt, ran, atk, adur);
+	let ut = world::UnitType::new(tid, p, health, mov_rate, movt, ran, adur);
 	Box::into_raw(Box::new(ut))
 }
 
@@ -87,6 +87,8 @@ pub extern "C" fn alsNewStateListener() -> *mut StateListener {
 	let s = StateListener::_new_raw();
 	Box::into_raw(Box::new(s))
 }
+
+pub type DfuncType = extern "C" fn(u8, u8) -> f32;
 
 create_release!(alsFreeResourceSet, ResourceSet);
 create_release!(alsFreeWorld, World);
@@ -115,6 +117,16 @@ pub extern "C" fn alsMapTexture(rs: *mut ResourceSet, id: u8, path: *const c_cha
     	let r = &mut *rs;
     	r.map_texture(id, &p);
     }
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsMapTextureRegion(rs: *mut ResourceSet, tid: u8, parent_id: u8, x: f32, y: f32, w: f32, h: f32) {
+	check_nonnull!(rs, "fatal [napi]: Pointer to ResourceSet is NULL");
+	unsafe {
+		let r = &mut *rs;
+		r.map_texture_region(tid, parent_id, x, y, w, h);
+	}	
 }
 
 #[no_mangle]
@@ -187,6 +199,30 @@ pub extern "C" fn alsRegisterUnitType(w: *mut World,u: *mut UnitType, id: u8) {
 		let w = &mut *w;
 		let ub = Box::from_raw(u);
 		world::register_unit_type(w, *ub, id);
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsSetUnitInfo(u: *mut UnitType, s: *const c_char) {
+	check_nonnull!(u, "fatal [napi]: Pointer to UnitType is NULL");
+	check_nonnull!(s, "fatal [napi]: Pointer to information string is NULL");
+	//Copy String
+	let p = unsafe { CStr::from_ptr(s) };
+    let p = p.to_str().map(|s| s.to_owned()).expect("ResourceSet path is not UtfString");
+    
+    unsafe {
+    	let r = &mut *u;
+    	r.set_info(p);
+    }
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsBindDamageFunc(w: *mut World, f: DfuncType) {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL");
+	unsafe {
+		(*w).dmg_func = world::DamageFunc::CHandle(f);
 	}
 }
 
@@ -396,6 +432,6 @@ pub extern "C" fn alsTilePermAt(w: *const World, x: i32, y: i32) -> bool {
 	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", false);
 	unsafe {
 		let w = &*w;
-		world::tile_perm_at(w, x, y)
+		world::tile_type_at(w, x, y).allowed()
 	}
 }

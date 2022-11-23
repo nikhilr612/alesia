@@ -16,6 +16,8 @@ fn it_works() {
     rs.map_texture(2, "res/newswords.png");
     rs.map_texture(241, "res/select_tile.png");
     rs.map_texture(242, "res/uitex.png");
+    rs.map_texture(243, "res/move_tile.png");
+    rs.map_texture(244, "res/attack_tile.png");
     rs.map_font(0, "res/def.ttf");
     rs.map_sound(1, "res/sword.wav");
     rs.map_sound(255, "res/select.wav");
@@ -26,7 +28,7 @@ fn it_works() {
         }
     }
     world::create_static(&mut w, 1, (2,2));
-    let mut ut = world::UnitType::new(2, "Swordsperson".to_string(), 10.0, 0.2,  2, 1, 0.1, 3.0);
+    let mut ut = world::UnitType::new(2, "Swordsperson".to_string(), 10.0, 0.2,  2, 1, 3.0);
     ut.def_anim_muted((32,48), 10, (0,0), 5.0, false);
     ut.def_anim_muted((32,48), 10, (0,48), 5.0, false);
     ut.def_anim_muted((32,48), 10, (0,48), 5.0, true);
@@ -59,24 +61,74 @@ fn load_map() {
     rs.map_texture(1, "res/castle.png");
     rs.map_texture(0, "res/house.png");
     rs.map_texture(3, "res/newswords.png");
-    rs.map_texture(240, "res/tiles.png");
+    rs.map_texture(4, "res/walls.png");
+    rs.map_texture(5, "res/archer.png");
+    rs.map_texture(6, "res/Cavalry.png");
+    rs.map_texture_region(5, 4, 0.0, 0.0, 111.0, 192.0);
+    rs.map_texture_region(6, 4, 192.0, 48.0, 96.0, 116.0);
+    rs.map_texture_region(7, 4, 384.0, 48.0, 96.0, 116.0);
+    rs.map_texture(240, "res/isotileset.png");
     rs.map_texture(241, "res/select_tile.png");
     rs.map_texture(242, "res/uitex.png");
+    rs.map_texture(243, "res/move_tile.png");
+    rs.map_texture(244, "res/attack_tile.png");
+    rs.map_texture(248, "res/uinfobox.png");
+    rs.map_texture(245, "res/textbox.png");
     rs.map_font(0, "res/def.ttf");
     rs.map_sound(1, "res/sword.wav");
     rs.map_sound(255, "res/select.wav");
-    let mut ut = world::UnitType::new(3, "Swordsperson".to_string(), 10.0, 0.2,  2, 1, 0.1, 7.0);
-    ut.def_anim_muted((32,48), 10, (0,0), 5.0, false);
-    ut.def_anim_muted((32,48), 10, (0,48), 5.0, false);
-    ut.def_anim_muted((32,48), 10, (0,48), 5.0, true);
-    ut.def_anim_muted((32,48), 10, (0,0), 5.0, true);
-    ut.def_anim_muted((48,64), 5, (0,96), 5.0, false);
-    ut.def_anim_muted((48,64), 5, (0,160), 5.0, false);
-    ut.def_anim_muted((48,64), 5, (0,160), 5.0, true);
-    ut.def_anim_muted((48,64), 5, (0,96), 5.0, true);
-    ut.def_anim_muted((32,48), 1, (0,0), 5.0, false);
+
+    let mut ut = world::UnitType::new(3, "Swordsman".to_string(), 10.0, 0.5,  2, 1, 1.5);
+    ut.def_anim_muted((32,48), 10, (0,0), 6.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 6.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 6.0, true);
+    ut.def_anim_muted((32,48), 10, (0,0), 6.0, true);
+    ut.def_anim_muted((48,64), 5, (0,96), 6.0, false);
+    ut.def_anim_muted((48,64), 5, (0,160), 6.0, false);
+    ut.def_anim_muted((48,64), 5, (0,160), 6.0, true);
+    ut.def_anim_muted((48,64), 5, (0,96), 6.0, true);
+    ut.def_anim_muted((32,48), 1, (0,0), 6.0, false);
+    ut.set_info("Wields long swords.\nAtk: 10\tDef:5".to_string());
     world::register_unit_type(&mut w, ut, 0);
-    world::load_world(&mut w, "res/testmap.alw");
-    let d = display::Display::new_s(960, 816, "Display test");
-    d.begin_s(rs, w);
+
+    let mut ut = world::UnitType::new(5, "Archer".to_string(), 10.0, 0.5,  2, 2, 1.5);
+    ut.def_anim_muted((32,48), 10, (0,0), 6.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 6.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 6.0, true);
+    ut.def_anim_muted((32,48), 10, (0,0), 6.0, true);
+    ut.def_anim_muted((32,64), 10, (0,96), 6.0, false);
+    ut.def_anim_muted((32,64), 10, (0,160), 6.0, false);
+    ut.def_anim_muted((32,64), 10, (0,160), 6.0, true);
+    ut.def_anim_muted((32,64), 10, (0,96), 6.0, true);
+    ut.def_anim_muted((32,48), 1, (0,0), 6.0, false);
+    ut.set_info("Wields bows.\nAtk: 10\tDef:5".to_string());
+    world::register_unit_type(&mut w, ut, 1);
+
+    /*let mut ut = world::UnitType::new(6, "Cavalry".to_string(), 10.0, 0.5,  5, 1, 1.5);
+    ut.def_anim_muted((80,64), 10, (0,0), 6.0, false);
+    ut.def_anim_muted((80,64), 10, (0,64), 6.0, false);
+    ut.def_anim_muted((80,64), 10, (0,64), 6.0, true);
+    ut.def_anim_muted((80,64), 10, (0,0), 6.0, true);
+
+    ut.def_anim_muted((80,112), 10, (0,128), 6.0, false);
+    ut.def_anim_muted((80,112), 10, (0,240), 6.0, false);
+    ut.def_anim_muted((80,112), 10, (0,240), 6.0, true);
+    ut.def_anim_muted((80,112), 10, (0,128), 6.0, true);
+    ut.def_anim_muted((80,68), 1, (0,0), 6.0, false);
+    ut.set_info("Mounted unit, wields swords.\nAtk: 10\tDef:5".to_string());
+    world::register_unit_type(&mut w, ut, 1);*/
+
+    println!("World load success: {}", world::load_world(&mut w, "res/testmap2.alw"));
+    let d = display::Display::new_s(1296, 816, "Display test");
+    let mut sl = utils::StateListener::new();
+    sl.bind_init(|| {
+        println!("Finished initialization of display!");
+    });
+    sl.bind_turn(|_w, o| {
+        //o.push(input::Order::DEFEAT);
+    });
+    w.bind_damage_func(|_id1, _id2| {
+        4.0
+    });
+    d.begin(rs, w, sl);
 }

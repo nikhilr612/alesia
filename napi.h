@@ -24,6 +24,8 @@ typedef struct ALS_IdList ALS_IdList;
 
 typedef struct ALS_World ALS_World;
 
+typedef float (*ALS_DfuncType)(uint8_t, uint8_t);
+
 typedef void (*ALS_CInitHandle)(void);
 
 typedef void (*ALS_CTurnHandle)(struct ALS_World*, struct ALS_OrderList*);
@@ -43,6 +45,8 @@ void alsBegin_Display(int32_t sw,
                       struct ALS_World *w,
                       struct ALS_StateListener *sl,
                       float mvl);
+
+void alsBindDamageFunc(struct ALS_World *w, ALS_DfuncType f);
 
 void alsBindInit(struct ALS_StateListener *sl, ALS_CInitHandle f);
 
@@ -73,6 +77,14 @@ void alsMapSound(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
 
 void alsMapTexture(struct ALS_ResourceSet *rs, uint8_t id, const char *path);
 
+void alsMapTextureRegion(struct ALS_ResourceSet *rs,
+                         uint8_t tid,
+                         uint8_t parent_id,
+                         float x,
+                         float y,
+                         float w,
+                         float h);
+
 struct ALS_ResourceSet *alsNewResourceSet(void);
 
 struct ALS_StateListener *alsNewStateListener(void);
@@ -83,10 +95,11 @@ struct ALS_UnitType *alsNewUnitType(uint8_t tid,
                                     float mov_rate,
                                     uint8_t movt,
                                     uint8_t ran,
-                                    float atk,
                                     float adur);
 
 void alsRegisterUnitType(struct ALS_World *w, struct ALS_UnitType *u, uint8_t id);
+
+void alsSetUnitInfo(struct ALS_UnitType *u, const char *s);
 
 uint8_t alsSpawnUnit(struct ALS_World *w,
                      uint8_t tid,
@@ -122,5 +135,9 @@ const struct ALS_Unit *alsnUnitRef(struct ALS_World *w, uint8_t uid);
 uint8_t alsnVecAt(const struct ALS_IdList *u, size_t elm);
 
 size_t alsnVecLen(const struct ALS_IdList *u);
+
+void alsFreeWorld(struct ALS_World *w);
+void alsFreeResourceSet(struct ALS_ResourceSet *w);
+void alsFreeUnitType(struct ALS_UnitType *w);
 
 #endif /* als_bindings_h */

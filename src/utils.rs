@@ -1,5 +1,6 @@
 //! Provides basic utilities like resource management
 
+use raylib::math::Rectangle;
 use raylib::audio::Music;
 use crate::input::Order;
 use raylib::text::Font;
@@ -26,6 +27,7 @@ enum ResType {
 pub struct ResourceSet {
 	to_load: Vec<(u8, ResType, String)>,
 	texs: HashMap<u8, Texture2D>,
+	texrec: HashMap<u8, (u8, Rectangle)>,
 	fonts: HashMap<u8, Font>,
 	sounds: HashMap<u8, Sound>, 
 	tracks: HashMap<u8, Music>,
@@ -46,6 +48,7 @@ impl ResourceSet {
 		ResourceSet {
 			to_load: vec![],
 			texs: HashMap::new(),
+			texrec: HashMap::new(),
 			fonts: HashMap::new(),
 			sounds: HashMap::new(),
 			tracks: HashMap::new(),
@@ -65,6 +68,24 @@ impl ResourceSet {
 		self.to_load.push((id, ResType::Tex, path.to_string()));
 	}
 
+	/// Map a region of a texture to an internal unsigned byte identifier.
+	/// *id* - the unsigned byte identifier for the texture region.
+	/// *tid* - the texture id, from which the region is to be extracted.
+	/// *x* - the starting x offset of the texture region.
+	/// *y* - the starting y offset of the texture region.
+	/// *w* - the width of the texture region.
+	/// *h* - the height of the texture region.
+	/// # Note:
+	/// If there exists a texture with the same id as a texture region, then the texture region is preffered for rendering.
+	pub fn map_texture_region(&mut self, id: u8, tid: u8, x: f32, y: f32, w: f32, h: f32) {
+		self.texrec.insert(id, (tid, Rectangle{x: x, y: y, width: w, height: h}));
+	}
+
+	/// Check if the given id belongs to a texture region.
+	pub fn is_texture_region(&self, id: u8) -> bool {
+		self.texrec.contains_key(&id)
+	}
+
 	/// Map a font to an internal unsigned byte identifier.
 	/// The method does not load fonts, but stores id-path mappings so that they may later be loaded once an OpenGL context is available.
 	pub fn map_font(&mut self, id: u8, path: &str) {
@@ -77,6 +98,18 @@ impl ResourceSet {
 		match self.texs.get(&id) {
 			Some(tex) => tex,
 			_ => self.get_default_texture()
+		}
+	}
+
+	/// Return the texture region (if it exists) with the specified id.
+	/// # Panics
+	/// If the texture region, or texture does not exists, method panics.
+	pub fn get_texture_region(&self, id: u8) -> (&Texture2D, &Rectangle) {
+		match self.texrec.get(&id) {
+			Some((tid, rec)) => {
+				(self.texs.get(tid).expect(&format!("Texture[tid={}] does not exist for corresponding texture region[id={}]", tid, id)), rec)
+			},
+			_ => panic!("Invalid texture region id={}", id)
 		}
 	}
 

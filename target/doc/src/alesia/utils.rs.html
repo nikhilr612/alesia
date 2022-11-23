@@ -306,8 +306,42 @@
 <span id="301">301</span>
 <span id="302">302</span>
 <span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Provides basic utilities like resource management</span>
 
+<span class="kw">use</span> <span class="ident">raylib::math::Rectangle</span>;
 <span class="kw">use</span> <span class="ident">raylib::audio::Music</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::input::Order</span>;
 <span class="kw">use</span> <span class="ident">raylib::text::Font</span>;
@@ -334,6 +368,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ResourceSet</span> {
 	<span class="ident">to_load</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u8</span>, <span class="ident">ResType</span>, <span class="ident">String</span>)<span class="op">&gt;</span>,
 	<span class="ident">texs</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, <span class="ident">Texture2D</span><span class="op">&gt;</span>,
+	<span class="ident">texrec</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, (<span class="ident">u8</span>, <span class="ident">Rectangle</span>)<span class="op">&gt;</span>,
 	<span class="ident">fonts</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, <span class="ident">Font</span><span class="op">&gt;</span>,
 	<span class="ident">sounds</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, <span class="ident">Sound</span><span class="op">&gt;</span>, 
 	<span class="ident">tracks</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u8</span>, <span class="ident">Music</span><span class="op">&gt;</span>,
@@ -354,6 +389,7 @@
 		<span class="ident">ResourceSet</span> {
 			<span class="ident">to_load</span>: <span class="macro">vec!</span>[],
 			<span class="ident">texs</span>: <span class="ident">HashMap::new</span>(),
+			<span class="ident">texrec</span>: <span class="ident">HashMap::new</span>(),
 			<span class="ident">fonts</span>: <span class="ident">HashMap::new</span>(),
 			<span class="ident">sounds</span>: <span class="ident">HashMap::new</span>(),
 			<span class="ident">tracks</span>: <span class="ident">HashMap::new</span>(),
@@ -373,6 +409,24 @@
 		<span class="self">self</span>.<span class="ident">to_load</span>.<span class="ident">push</span>((<span class="ident">id</span>, <span class="ident">ResType::Tex</span>, <span class="ident">path</span>.<span class="ident">to_string</span>()));
 	}
 
+	<span class="doccomment">/// Map a region of a texture to an internal unsigned byte identifier.</span>
+	<span class="doccomment">/// *id* - the unsigned byte identifier for the texture region.</span>
+	<span class="doccomment">/// *tid* - the texture id, from which the region is to be extracted.</span>
+	<span class="doccomment">/// *x* - the starting x offset of the texture region.</span>
+	<span class="doccomment">/// *y* - the starting y offset of the texture region.</span>
+	<span class="doccomment">/// *w* - the width of the texture region.</span>
+	<span class="doccomment">/// *h* - the height of the texture region.</span>
+	<span class="doccomment">/// # Note:</span>
+	<span class="doccomment">/// If there exists a texture with the same id as a texture region, then the texture region is preffered for rendering.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_texture_region</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u8</span>, <span class="ident">tid</span>: <span class="ident">u8</span>, <span class="ident">x</span>: <span class="ident">f32</span>, <span class="ident">y</span>: <span class="ident">f32</span>, <span class="ident">w</span>: <span class="ident">f32</span>, <span class="ident">h</span>: <span class="ident">f32</span>) {
+		<span class="self">self</span>.<span class="ident">texrec</span>.<span class="ident">insert</span>(<span class="ident">id</span>, (<span class="ident">tid</span>, <span class="ident">Rectangle</span>{<span class="ident">x</span>: <span class="ident">x</span>, <span class="ident">y</span>: <span class="ident">y</span>, <span class="ident">width</span>: <span class="ident">w</span>, <span class="ident">height</span>: <span class="ident">h</span>}));
+	}
+
+	<span class="doccomment">/// Check if the given id belongs to a texture region.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_texture_region</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u8</span>) -&gt; <span class="ident">bool</span> {
+		<span class="self">self</span>.<span class="ident">texrec</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>)
+	}
+
 	<span class="doccomment">/// Map a font to an internal unsigned byte identifier.</span>
 	<span class="doccomment">/// The method does not load fonts, but stores id-path mappings so that they may later be loaded once an OpenGL context is available.</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">map_font</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u8</span>, <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
@@ -385,6 +439,18 @@
 		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">texs</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
 			<span class="prelude-val">Some</span>(<span class="ident">tex</span>) =&gt; <span class="ident">tex</span>,
 			<span class="kw">_</span> =&gt; <span class="self">self</span>.<span class="ident">get_default_texture</span>()
+		}
+	}
+
+	<span class="doccomment">/// Return the texture region (if it exists) with the specified id.</span>
+	<span class="doccomment">/// # Panics</span>
+	<span class="doccomment">/// If the texture region, or texture does not exists, method panics.</span>
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_texture_region</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">u8</span>) -&gt; (<span class="kw-2">&amp;</span><span class="ident">Texture2D</span>, <span class="kw-2">&amp;</span><span class="ident">Rectangle</span>) {
+		<span class="kw">match</span> <span class="self">self</span>.<span class="ident">texrec</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
+			<span class="prelude-val">Some</span>((<span class="ident">tid</span>, <span class="ident">rec</span>)) =&gt; {
+				(<span class="self">self</span>.<span class="ident">texs</span>.<span class="ident">get</span>(<span class="ident">tid</span>).<span class="ident">expect</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Texture[tid={}] does not exist for corresponding texture region[id={}]&quot;</span>, <span class="ident">tid</span>, <span class="ident">id</span>)), <span class="ident">rec</span>)
+			},
+			<span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Invalid texture region id={}&quot;</span>, <span class="ident">id</span>)
 		}
 	}
 

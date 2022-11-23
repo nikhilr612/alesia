@@ -3,8 +3,6 @@
 use std::fmt::Error;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::io::Seek;
-use std::io::SeekFrom;
 use std::io::Read;
 use std::fs::File;
 use std::collections::HashMap;
@@ -13,14 +11,118 @@ use raylib::math::Rectangle;
 use raylib::prelude::Color;
 use crate::input::Order;
 
-/*enum MovePerm {
+const EPS: f32 = 0.1;
+const CONTROL_PT: Vector2 = Vector2 {
+	x: -1.0,
+	y: -1.0
+};
+
+#[derive(Debug, Clone)]
+pub enum TileType {
+	/// Tile type for tiles which units cannot move onto.
+	Prohibited,
+	/// Tile type for tiles which heal units.
+	Heal,
+	/// Tile type for tiles which damage units.
+	Damage,
+	/// Tile type for tiles which units can move onto.
 	Allowed,
-	Prohibited
-}*/
+}
+
+impl TileType {
+	pub fn allowed(&self) -> bool {
+		match self {
+			TileType::Prohibited => false,
+			_ => true
+		}
+	}
+}
+
+/// Pointer to damage calculating function;
+/// *`atk` - the unit type id of the attacking unit.
+/// *`def` - the unit type id of the defending unit.
+pub enum DamageFunc {
+	Handle(fn (atk: u8, def: u8) -> f32),
+	CHandle(extern "C" fn (atk: u8, def: u8) -> f32)
+}
+
+impl DamageFunc {
+	fn invoke(&self, atk: u8, def: u8) -> f32 {
+		match self {
+			DamageFunc::Handle(r) => r(atk, def),
+			DamageFunc::CHandle(r) => r(atk, def)
+		}
+	}
+}
+
+pub(crate) struct Projectile {
+	target: Vector2,
+	ctrlpt: Vector2,
+	velocity: Vector2,
+	position: Vector2,
+	source: Vector2,
+	length: f32,
+	lifetime: f32,
+	expected: f32,
+	pub(crate) reached: bool
+}
+
+impl Projectile {
+	/// Create a projectile from *source* to *target* with given speed and length.
+	fn new(target: Vector2, source: Vector2, speed: f32, len: f32) -> Projectile {
+		let diff = target - source;
+		let velocity = diff.normalized().scale_by(speed);
+		Projectile {
+			target: target,
+			velocity: velocity,
+			position: source,
+			source: source,
+			ctrlpt: source + CONTROL_PT,
+			length: len,
+			lifetime: 0.0,
+			expected: diff.length() / speed,
+			reached: false,
+		}
+	}
+
+	pub(crate) fn update(&mut self, delta: f32) {
+		let diff = self.position - self.target;
+		if f32::abs(diff.x) < EPS && f32::abs(diff.y) < EPS {
+			self.reached = true;
+			return;
+		}
+		self.lifetime += delta;
+		let t = self.lifetime / self.expected;
+		self.velocity = self.bezier_vel(t);
+		self.position = self.bezier_pos(t);
+	}
+
+	pub fn _prep_draw(&self, w: &World) -> (Vector2, Vector2) {
+		let vp = Vector2::new(w.tile_size.0 as f32 /2.0, w.tile_size.1 as f32 / 2.0);
+		let off = self.velocity.normalized().scale_by(self.length);
+		(wots_v(w, self.position) + vp , wots_v(w, self.position + off) + vp)
+	}
+
+	fn bezier_vel(&self, t: f32) -> Vector2 {
+		let p_10 = self.ctrlpt - self.source;
+		let p_21 = self.target - self.ctrlpt;
+		p_10.scale_by(2.0*(1.0-t)) + p_21.scale_by(2.0*t)
+	}
+
+	fn bezier_pos(&self, t: f32) -> Vector2 {
+		let p_10 = self.ctrlpt - self.source;
+		let p_21 = self.target - self.ctrlpt;
+		let p1 = self.source + p_10.scale_by(t);
+		let p2 = self.ctrlpt + p_21.scale_by(t);
+		let p = p1 + (p2-p1).scale_by(t);
+		p
+	}
+}
 
 #[derive(Debug)]
 /// Plain struct to store map data
 struct TileMap {
+	// Tile data
 	/// The width of the map
 	map_width: usize,
 	/// THe height of the map
@@ -28,7 +130,18 @@ struct TileMap {
 	/// Flattened array consisting of the tiles of the map
  	map_tiles: Vec<u8>,
  	/// HashMap to map tile id to corresponding movement permissions.
- 	tile_perm: HashMap<u8, bool>,
+ 	tile_perm: HashMap<u8, TileType>,
+
+ 	// Text data
+ 	/// Map title
+ 	title: String,
+ 	/// Text shown before map begins.
+ 	intro_text: String,
+ 	/// Text shown when player wins.
+ 	victory_text: String,
+ 	/// Text shown when player loses.
+ 	defeat_text: String,
+
 	/// Flag to show or hide map.	
 	show: bool
 }
@@ -40,19 +153,29 @@ impl TileMap {
 			map_height: 0,
 			map_tiles: vec![],
 			tile_perm: HashMap::new(),
+			title: String::new(),
+			intro_text: String::new(),
+			victory_text: String::new(),
+			defeat_text: String::new(),
 			show: false
 		}
 	}
 }
 
+fn no_dmg(_: u8, _: u8) -> f32 {
+	0.0
+}
+
 /// Plain struct to contain sprites, tilemap, gameobjects etc.
 pub struct World {
 	/// Vector containing all StaticTex structs to be rendered.
-	pub statics: Vec<StaticTex>,
-	/// Vector containing all registered unit types.
-	pub unit_types: HashMap<u8,UnitType>,
-	/// Vector containing all alive units.
+	pub(crate) statics: Vec<StaticTex>,
+	/// Map containing all registered unit types.
+	pub(crate) unit_types: HashMap<u8,UnitType>,
+	/// Map containing all alive units.
 	pub units: HashMap<u8, Unit>,
+	/// Vector containing all projectiles yet to reach their target.
+	pub(crate) projectiles: Vec<Projectile>,
 	/// The origin of the world
 	origin: (i32, i32),
 	/// Tile Map of the world.
@@ -66,7 +189,9 @@ pub struct World {
 	/// Camera offset
 	pub coff: (f32, f32),
 	/// The internal identifier of the music currently playing in the background.
-	pub bgm_id: u8
+	pub bgm_id: u8,
+	/// The function pointer for damage function
+	pub(crate) dmg_func: DamageFunc,
 }
 
 ///#TODO: Remove in Release
@@ -88,6 +213,7 @@ impl World {
 	pub fn blank() -> World {
 		World {
 			statics: vec![],
+			projectiles: vec![],
 			unit_types: HashMap::new(),
 			units: HashMap::new(),
 			origin: (0,0),
@@ -96,7 +222,8 @@ impl World {
 			cam_wx: 0.0,
 			cam_wy: 0.0,
 			coff: (0.0, 0.0),
-			bgm_id: 0
+			bgm_id: 0,
+			dmg_func: DamageFunc::Handle(no_dmg),
 		}
 	}
 
@@ -108,6 +235,7 @@ impl World {
 	pub fn blank_o(ox: i32, oy: i32, tx: i32, ty: i32) -> World{
 		World {
 			statics: vec![],
+			projectiles: vec![],
 			unit_types: HashMap::new(),
 			units: HashMap::new(),
 			origin: (ox,oy),
@@ -116,7 +244,8 @@ impl World {
 			cam_wx: 0.0,
 			cam_wy: 0.0,
 			coff: (0.0, 0.0),
-			bgm_id: 0
+			bgm_id: 0,
+			dmg_func: DamageFunc::Handle(no_dmg),
 		}	
 	}
 
@@ -149,6 +278,31 @@ impl World {
 	/// Set the music id for the background music.
 	pub fn set_bgm(&mut self, id: u8) {
 		self.bgm_id = id;
+	}
+
+	/// Set the damage calculation function.
+	pub fn bind_damage_func(&mut self, f: fn(u8, u8) -> f32) {
+		self.dmg_func = DamageFunc::Handle(f);
+	}
+
+	/// Get the text to be displayed before starting gameplay.
+	pub fn intro_text(&self) -> &str {
+		&self.tilemap.intro_text
+	}
+
+	/// Get the title of the map loaded.
+	pub fn map_title(&self) -> &str {
+		&self.tilemap.title
+	}
+
+	/// Get the text to be displayed when player wins.
+	pub fn victory_text(&self) -> &str {
+		&self.tilemap.victory_text
+	}
+
+	/// Get the text to be displayed when player loses.
+	pub fn defeat_text(&self) -> &str {
+		&self.tilemap.defeat_text
 	}
 }
 
@@ -186,14 +340,13 @@ struct AnimInfo {
 pub struct UnitType {
 	tex_id: u8,
 	max_health: f32,
-	/// Primary coefficient used in damage calculation.
-	base_attack: f32,
-	/// Duration of attack animation
 	attack_dur: f32,
 	/// The rate at which the sprite moves on-screen in tiles per second.
 	mov_rate: f32,
 	/// The display name of units belonging to this type.
 	pub name: String,
+	/// Info-string to be displayed. for this unit type.
+	pub info: Option<String>,
 	/// The maximum number of tiles units of this type can move in a turn.
 	movement: u8,
 	/// The range of the unit.
@@ -218,18 +371,17 @@ impl UnitType {
 	/// * `mov_rate` - The rate at which the unit moves in tiles per second.
 	/// * `movement` - The number of tiles a unit of this type can move.
 	/// * `range` - The range of the unit's attack.
-	/// * `base_attack` - The primary coefficient used for damage calculations.
 	/// * `attack_dur` - The duration of attack state in seconds
-	pub fn new(tex_id: u8, name: String, max_health: f32, mov_rate: f32, movement: u8, range: u8, base_attack: f32, attack_dur: f32) -> UnitType {
+	pub fn new(tex_id: u8, name: String, max_health: f32, mov_rate: f32, movement: u8, range: u8, attack_dur: f32) -> UnitType {
 		UnitType {
 			tex_id: tex_id,
 			name: name,
+			info: None,
 			anim: vec![],
 			max_health: max_health,
 			mov_rate: mov_rate,
 			movement: movement,
 			range: range,
-			base_attack: base_attack,
 			attack_dur: attack_dur
 		}
 	}
@@ -282,6 +434,11 @@ impl UnitType {
 			flip: flip,
 			snd_info: Some((snd, lp))
 		});
+	}
+
+	/// Set the info string of this unit type.
+	pub fn set_info(&mut self, text: String) {
+		self.info = Some(text);
 	}
 }
 
@@ -388,6 +545,21 @@ impl Unit {
 		};
 		let v2 = Vector2::new(0.5*(w.tile_size.0 - aif.frame_width as i32) as f32, 0.5*(w.tile_size.1 - aif.frame_height as i32) as f32);
 		(ut.tex_id, rec, wots_v(w,self.wpos) + v2, aif.snd_info)
+	}
+
+	pub fn _stand_frame(&self, w: &World, tx: i32, ty: i32) -> (u8, Rectangle, Vector2) {
+		let ut = w.unit_types.get(&self.type_id).unwrap();
+		let aif = &ut.anim[8];
+		let rec = Rectangle {
+			height: (aif.frame_height as f32),
+			width: if aif.flip {-1.0} else {1.0} * (aif.frame_width) as f32,
+			x: (aif.sfr_x as f32),
+			y: (aif.sfr_y as f32)
+		};
+		let v2 = Vector2::new(0.5*(w.tile_size.0 - aif.frame_width as i32) as f32, 0.5*(w.tile_size.1 - aif.frame_height as i32) as f32);
+		let (sx, sy) = wots(w, tx, ty);
+		let pos = Vector2::new(sx as f32, sy as f32) + v2;
+		(ut.tex_id, rec, pos)
 	}
 
 	/// Get the tint colour for the unit.
@@ -501,10 +673,29 @@ pub fn spawn_unit(w: &mut World, type_id: u8, co_ords: (i32, i32), tint: i32, pl
 }
 
 /// Returns true if given order has not yet been completed, else false.
-pub fn order_pending(o: &Order, w: &mut World) -> bool {
+pub fn order_pending(o: &Order, w: &mut World, next_state: &mut Option<u8>) -> bool {
 	match o {
 		Order::MOVE(id, tx, ty) => crate::world::has_unit_moved(w, *id, (*tx, *ty)),
-		Order::ATTACK(id, target, tx, ty) => crate::world::has_unit_attacked(w, *id, *target, (*tx, *ty))
+		Order::ATTACK(id, target, tx, ty) => crate::world::has_unit_attacked(w, *id, *target, (*tx, *ty)),
+		Order::VICTORY => {
+			*next_state = Some(5);
+			false
+		},
+		Order::DEFEAT => {
+			*next_state = Some(6);
+			false
+		},
+		Order::MutHealthA(id, delta) => {
+			let u = w.units.get_mut(id).unwrap();
+			u.health += delta;
+			false
+		}
+		Order::MutHealthR(id, delta) => {
+			let u = w.units.get_mut(id).unwrap();
+			let absdel = delta * w.unit_types.get(&u.type_id).unwrap().max_health * delta;
+			u.health += absdel;
+			false
+		}
 	}
 }
 
@@ -530,7 +721,7 @@ fn has_unit_moved(w: &mut World, uid: u8, co_ords: (i32, i32)) -> bool {
 }
 
 fn has_unit_attacked(w: &mut World, uid: u8, trg: u8, co_ords: (i32,i32)) -> bool {
-	let tp = w.units.get(&trg).expect("Invalild unit ID").wpos;
+	let tp = w.units.get(&trg).expect("Invalid unit ID").wpos;
 	let u: &mut Unit = w.units.get_mut(&uid).expect("Invalid unit ID");
 	let ut = w.unit_types.get(&u.type_id).expect("Invalid unit type ID");
 	if u.busy {
@@ -539,14 +730,21 @@ fn has_unit_attacked(w: &mut World, uid: u8, trg: u8, co_ords: (i32,i32)) -> boo
 		if ux == 0.0 && uy == 0.0 && u.stime >= ut.attack_dur{
 			_chust(u,UnitState::Stand);
 			u.busy = false;
+			let atk_id = u.type_id;
 			let t = w.units.get_mut(&trg).expect("Invalid unit ID");
-			t.health -= ut.max_health*ut.base_attack;
+			let dmg = w.dmg_func.invoke(atk_id, t.type_id);
+			t.health -= dmg; //ut.max_health*ut.base_attack;
 			return false;
 		} else {
 			return true;
 		}
 	} else {
 		_chust(u,_gadir(u, tp, uid));
+		let dst = i32::abs(tp.x as i32 - co_ords.0) + i32::abs(tp.y as i32 - co_ords.1);
+		if dst > 1 {
+			let vec = Vector2::new(co_ords.0 as f32, co_ords.1 as f32);
+			w.projectiles.push(Projectile::new(tp, vec, 4.0, 0.5));
+		}
 		u.busy = true;
 		return true;
 	}
@@ -635,6 +833,37 @@ macro_rules! bferr {
 		}
 	};
 }
+fn read_tilelist(f: &mut File, tperm: &mut HashMap<u8, TileType>, fpath: &str, perm: TileType) -> bool {
+	let mut buf1 = [0];
+	let n = f.read(&mut buf1).expect("Failed to read tile list.");
+	if n < 1 {
+		bferr!(fpath, "Failed to read tile list.");
+	}
+	let mut b = vec![0; buf1[0] as usize];
+	let n = f.read(&mut b).expect("Failed to read tile list.");
+	if n < b.len() {
+		bferr!(fpath, "Failed to read tile list.");
+	}
+	for v in b {
+		tperm.insert(v, perm.clone());
+	}
+	true
+}
+
+fn read_string(f: &mut File, fpath: &str, st: &mut String, mut buf2: [u8; 2]) -> bool {
+	let n = f.read(&mut buf2).expect("Failed to read ascii string");
+	if n < 2 {
+		bferr!(fpath, "Failed to read ascii string");
+	}
+	let s = (buf2[0] as u16) << 8| buf2[1] as u16;
+	let mut b = vec![0; s.into()];
+	let n = f.read(&mut b).expect("IOError while reading string");
+	if n < s.into() {
+		bferr!(fpath, "Failed to read ascii string");
+	}
+	st.push_str(std::str::from_utf8(&b).expect("Failed to decode utf-8 string."));
+	true
+}
 
 /// Load tile map data from the specified file into the world
 /// * `_w` - The world to load [TileMap] into
@@ -675,7 +904,6 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 	// Data Buffers.
 	let mut buf4:[u8; 4] = [0,0,0,0];
 	let mut buf2:[u8; 2] = [0,0];
-	let mut buf1:[u8;1] = [0];
 	
 	// Read MAGIC
 	let _n = f.read(&mut buf4).expect("Failed to read MAGIC bytes from world file.");
@@ -700,25 +928,15 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 		if buf2 != MPSIG {
 			bferr!(fpath, "Invalid data at end of section. Allowed: 0xDAD7 or 0x0000");
 		}
-
-		let n = f.read(&mut buf1).expect("Failed to read tile list.");
-		if n < 1 {
-			bferr!(fpath, "Failed to read tile list.");
-		}
-		let mut b = vec![0; buf1[0] as usize];
-		let n = f.read(&mut b).expect("Failed to read tile list.");
-		if n < b.len() {
-			bferr!(fpath, "Failed to read tile list.");
-		}
-		for v in b {
-			tperm.insert(v, false);
-		}
+		if !read_tilelist(&mut f, &mut tperm, fpath, TileType::Prohibited) {return false;}
+		if !read_tilelist(&mut f, &mut tperm, fpath, TileType::Heal) {return false;}
+		if !read_tilelist(&mut f, &mut tperm, fpath, TileType::Damage) {return false;}
 	}
 	// Read tile data. TODO: Switch to a more efficient version using mid-size buffers.
 	let mut tdata = Vec::new();
 	{
 		let s = w * h;
-		tdata.try_reserve_exact(s).expect(&format!("Failed to allocate {} bytes of memory for map data", s));
+		tdata.try_reserve(s).expect(&format!("Failed to allocate {} bytes of memory for map data", s));
 		tdata.resize(s, 0);
 	}
 	let n = f.read(&mut tdata).expect("Failed to read tile data from world file.");
@@ -726,21 +944,34 @@ pub fn load_world(_w: &mut World, fpath: &str) -> bool {
 		bferr!(fpath, "World file does not specify all tiles (premature termination of file).");
 	}
 
+	let mut title = String::from("");
+	if !read_string(&mut f, fpath, &mut title, buf2) {return false;}
+	let mut intro_text = String::from("");
+	if !read_string(&mut f, fpath, &mut intro_text, buf2) {return false;}
+	let mut victory_text = String::from("");
+	if !read_string(&mut f, fpath, &mut victory_text, buf2) {return false;}
+	let mut defeat_text = String::from("");
+	if !read_string(&mut f, fpath, &mut defeat_text, buf2) {return false;}
+
 	_w.tilemap = TileMap {
 		map_width: w,
 		map_height: h,
 		map_tiles: tdata,
 		tile_perm: tperm,
+		title: title,
+		intro_text: intro_text,
+		defeat_text: defeat_text,
+		victory_text: victory_text,
 		show: true
 	};
 
-	match f.seek(SeekFrom::Current(6)) {
+	/*match f.seek(SeekFrom::Current(6)) {
 		Err(_e) => {
 			eprintln!("error: {}", _e);
 			bferr!(fpath, "6 byte padding after tile data absent.");
 		},
 		Ok(_) => ()
-	}; // Skip 6 bytes for padding.
+	};*/ // Skip 6 bytes for padding.
 
 	let mut n = f.read(&mut buf2).expect("Failed to read continue notifier.");
 	if n < 2{
@@ -785,12 +1016,28 @@ pub fn id_list(w: &World) -> Vec<u8> {
 }
 
 /// Returns true if the tile specified allows movement. 
-pub fn tile_perm_at(w: &World, x: i32, y: i32) -> bool {
+pub fn tile_type_at(w: &World, x: i32, y: i32) -> TileType {
+	if x < 0 || y < 0 {
+		return TileType::Prohibited;
+	}
 	let idx = ((y as usize)*w.tilemap.map_width+(x as usize)) % w.tilemap.map_tiles.len();
 	let t = w.tilemap.map_tiles[idx];
 	if w.tilemap.tile_perm.contains_key(&t) {
-		*w.tilemap.tile_perm.get(&t).unwrap()
+		return w.tilemap.tile_perm.get(&t).unwrap().clone()
 	} else {
-		true
+		TileType::Allowed
 	}
+}
+
+pub(crate) fn _unit_health(w: &World, uid: u8) -> (f32, f32) {
+	let u = w.units.get(&uid).unwrap();
+	let h = u.health;
+	let mh = w.unit_types.get(&u.type_id).unwrap().max_health;
+	(h, mh)
+}
+
+pub(crate) fn  _unit_info(w: &World, uid: u8) -> Option<&String> {
+	let u = w.units.get(&uid).unwrap();
+	let ut = w.unit_types.get(&u.type_id).unwrap();
+	ut.info.as_ref()
 }
