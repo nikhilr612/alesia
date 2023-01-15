@@ -10,6 +10,8 @@
 #include <stdlib.h>
 
 
+#define ALS_DEBUG_ORDERS true
+
 typedef struct ALS_ResourceSet ALS_ResourceSet;
 
 typedef struct ALS_StateListener ALS_StateListener;
@@ -64,6 +66,19 @@ void alsDefAnim(struct ALS_UnitType *u,
                 uint32_t cfy,
                 float fr,
                 bool flip);
+
+void alsDefAnimUnmuted(struct ALS_UnitType *u,
+                       uint32_t fw,
+                       uint32_t fh,
+                       uint8_t frn,
+                       uint32_t cfx,
+                       uint32_t cfy,
+                       float fr,
+                       bool flip,
+                       uint8_t snd,
+                       bool lp);
+
+uint8_t alsGetTypeID(const struct ALS_World *w, uint8_t uid);
 
 struct ALS_IdList *alsIdList(const struct ALS_World *w);
 
@@ -120,6 +135,10 @@ float alsnGetUnitX(const struct ALS_Unit *w);
 
 float alsnGetUnitY(const struct ALS_Unit *w);
 
+size_t alsnGetWorldHeight(const struct ALS_World *w);
+
+size_t alsnGetWorldWidth(const struct ALS_World *w);
+
 bool alsnIsUnitFoe(const struct ALS_Unit *uref);
 
 void alsnPushAttackOrder(struct ALS_OrderList *i,
@@ -128,16 +147,18 @@ void alsnPushAttackOrder(struct ALS_OrderList *i,
                          int32_t tx,
                          int32_t ty);
 
+void alsnPushDefeatOrder(struct ALS_OrderList *i);
+
 void alsnPushMoveOrder(struct ALS_OrderList *i, uint8_t uid, int32_t tx, int32_t ty);
+
+void alsnPushMutHealthOrder(struct ALS_OrderList *i, uint8_t uid, float val, bool is_rel);
+
+void alsnPushVictoryOrder(struct ALS_OrderList *i);
 
 const struct ALS_Unit *alsnUnitRef(struct ALS_World *w, uint8_t uid);
 
 uint8_t alsnVecAt(const struct ALS_IdList *u, size_t elm);
 
 size_t alsnVecLen(const struct ALS_IdList *u);
-
-void alsFreeWorld(struct ALS_World *w);
-void alsFreeResourceSet(struct ALS_ResourceSet *w);
-void alsFreeUnitType(struct ALS_UnitType *w);
 
 #endif /* als_bindings_h */

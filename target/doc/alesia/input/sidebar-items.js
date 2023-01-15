@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["Order","An enum containing all possible orders followed by units."]]});
+initSidebarItems({"constant":[["DEBUG_ORDERS",""]],"enum":[["Order","An enum containing all possible orders followed by units."]]});

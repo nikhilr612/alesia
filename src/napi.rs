@@ -140,12 +140,21 @@ pub extern "C" fn alsCreateStatic(w: *mut World, tex_id: u8, cx: i32, cy: i32) {
 }
 
 #[no_mangle]
-/// FFI for `UnitType.def_anim`. Tuples have been expanded into individual arguments.
+/// FFI for `UnitType.def_anim_muted`. Tuples have been expanded into individual arguments.
 pub extern "C" fn alsDefAnim(u: *mut UnitType, fw: u32, fh: u32, frn: u8, cfx: u32, cfy: u32, fr: f32, flip: bool) {
 	check_nonnull!(u, "fatal [napi]: Pointer to UnitType is NULL");
 	unsafe {
 		(&mut *u).def_anim_muted((fw, fh), frn, (cfx,cfy), fr, flip);
 	}
+}
+
+#[no_mangle]
+/// FFI for `UnitType.def_anim`. Tuples have been expanded into indivifual arguments.
+pub extern "C" fn alsDefAnimUnmuted(u: *mut UnitType, fw: u32, fh: u32, frn: u8, cfx: u32, cfy: u32, fr: f32, flip: bool, snd: u8, lp: bool) {
+	check_nonnull!(u, "fatal [napi]: Pointer to UnitType is NULL");
+	unsafe {
+		(&mut *u).def_anim((fw, fh), frn, (cfx,cfy), fr, flip, snd, lp);
+	}	
 }
 
 #[no_mangle]
@@ -345,6 +354,40 @@ pub extern "C" fn alsnPushAttackOrder(i: *mut Vec<Order>, uid: u8, target: u8, t
 }
 
 #[no_mangle]
+/// Push a victory order
+pub extern "C" fn alsnPushVictoryOrder(i: *mut Vec<Order>) {
+	check_nonnull!(i, "fatal [napi]: Pointer to Order Vector is NULL");
+	unsafe {
+		let i = &mut *i;
+		i.push(Order::VICTORY);
+	}
+}
+
+#[no_mangle]
+/// Push a victory order
+pub extern "C" fn alsnPushDefeatOrder(i: *mut Vec<Order>) {
+	check_nonnull!(i, "fatal [napi]: Pointer to Order Vector is NULL");
+	unsafe {
+		let i = &mut *i;
+		i.push(Order::DEFEAT);
+	}
+}
+
+#[no_mangle]
+/// Push a victory order
+pub extern "C" fn alsnPushMutHealthOrder(i: *mut Vec<Order>, uid: u8, val: f32, is_rel: bool) {
+	check_nonnull!(i, "fatal [napi]: Pointer to Order Vector is NULL");
+	unsafe {
+		let i = &mut *i;
+		if is_rel {
+			i.push(Order::MutHealthR(uid, val))
+		} else {
+			i.push(Order::MutHealthA(uid, val))
+		}
+	}
+}
+
+#[no_mangle]
 #[allow(missing_docs)]
 pub extern "C" fn alsSpawnUnit(w: *mut World, tid: u8, tx: i32, ty: i32, tint: i32, plr: bool) -> u8 {
 	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", 0x00);
@@ -433,5 +476,35 @@ pub extern "C" fn alsTilePermAt(w: *const World, x: i32, y: i32) -> bool {
 	unsafe {
 		let w = &*w;
 		world::tile_type_at(w, x, y).allowed()
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsGetTypeID(w: *const World, uid: u8) -> u8 {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", 0x00);
+	unsafe {
+		let w = &*w;
+		world::get_type_id(w, uid)
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsnGetWorldWidth(w: *const World) -> usize {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", 0x00);
+	unsafe {
+		let w = &*w;
+		w.map_size().0
+	}
+}
+
+#[no_mangle]
+#[allow(missing_docs)]
+pub extern "C" fn alsnGetWorldHeight(w: *const World) -> usize {
+	check_nonnull!(w, "fatal [napi]: Pointer to World is NULL", 0x00);
+	unsafe {
+		let w = &*w;
+		w.map_size().1
 	}
 }

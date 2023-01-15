@@ -8,7 +8,10 @@
 //! d.begin_s(ResourceSet::new(), World::blank()); // Blank for example's sake
 //! ```
 
+use std::cmp::Ordering;
+
 const BOX_STATICS: bool = false;
+const RENDER_FILTER_GAP: i32 = 2;
 const GRAYCOL: Color = Color {
         r: 200,
         g: 150,
@@ -95,6 +98,67 @@ pub struct Display {
 	col: Color
 }
 
+struct Renderable<'a> {
+	wpos: Vector2,
+	spos: Vector2,
+	tex: &'a Texture2D,
+	reg: Option<Rectangle>,
+	tint: Color,
+	is_static: bool
+}
+
+impl Renderable<'_> {
+	fn new_static(tex: &Texture2D, x: i32, y: i32, wx: i32, wy: i32) -> Renderable {
+		Renderable {
+			wpos: Vector2::new(wx as f32, wy as f32),
+			spos: Vector2::new(x as f32, y as f32),
+			tex: tex,
+			reg: None,
+			tint: Color::WHITE,
+			is_static: true
+		}
+	}
+
+	fn new_static_texreg(tex: &Texture2D, spos: Vector2, wx: i32, wy: i32, rec: Rectangle) -> Renderable {
+		Renderable {
+			wpos: Vector2::new(wx as f32, wy as f32),
+			spos: spos,
+			tex: tex,
+			reg: Some(rec),
+			tint: Color::WHITE,
+			is_static: true	
+		}
+	}
+
+	fn new_unit(tex: &Texture2D, wpos: Vector2, spos: Vector2, rec: Rectangle, tint: Color) -> Renderable {
+		Renderable {
+			tex: tex,
+			wpos: wpos,
+			spos: spos,
+			reg: Some(rec),
+			tint: tint,
+			is_static: false
+		}
+	}
+
+	fn cmp(r1: &Renderable, r2: &Renderable) -> Ordering{
+		let diff = r1.wpos - r2.wpos;
+		if diff.x < 0.0 {
+			Ordering::Less
+		} else if diff.x > 0.0 {
+			Ordering::Greater
+		} else {
+			if diff.y > 0.0 {
+				Ordering::Greater
+			} else if diff.y < 0.0 {
+				Ordering::Less
+			} else {
+				Ordering::Equal
+			}
+		}
+	}
+}
+
 impl Display {
 	/// Constructor method. Returns Display struct with specified width, height, title, target fps, vsync and clear colour.
 	pub fn new(width: i32, height: i32, fps: u32, vsync: bool, title: &str, col: Color, mvolume: f32) -> Display{
@@ -120,7 +184,7 @@ impl Display {
 	}
 
 	/// Begin the draw-update loop.
-	pub fn begin(self, mut rs: ResourceSet, mut w: World, sl: StateListener) {
+	pub fn begin(self, mut rs: ResourceSet, mut w: World, mut sl: StateListener) {
 		// Initialization
 		let mut rb = raylib::init();
 		let mut cam = Camera2D {
@@ -134,6 +198,7 @@ impl Display {
 			rb.vsync();
 		}
 		let (mut rl, thread) = rb.build();
+		rl.set_exit_key(Some(KeyboardKey::KEY_NULL));
 		let mut rlau = RaylibAudio::init_audio_device();
 		// Load resources
 		println!("info [alesia/display.rs] : Loading resources from resource set.");
@@ -206,10 +271,34 @@ impl Display {
 			}
 			// Camera controls are always active.
 			_cam_control(&mut w, &rl);
-			is.handle(&mut w, &rl, &sl, &mut rlau, &mut rs);
+			is.handle(&mut w, &rl, &mut sl, &mut rlau, &mut rs);
 			if let Some(a) = rs.get_music(w.bgm_id) {
 				rlau.update_music_stream(a);
 			}
+		}
+	}
+
+	fn is_pos_offscreen(&self, v: &Vector2, w: &World, gap: i32) -> bool {
+		let (cx, cy) = w.get_cpos();
+		let gap = gap as f32;
+		let (xmin, xmax) = (cx - gap, gap + cx + self.width as f32);
+		let (ymin, ymax) = (cy - gap, gap +cy + self.height as f32);
+		if v.x < xmin || v.x > xmax || v.y < ymin || v.y > ymax {
+			true
+		} else {
+			false
+		}
+	}
+	
+	fn is_ipos_offscreen(&self, x: i32, y: i32, w: &World, gap: i32) -> bool {
+		let (cx, cy) = w.get_cpos();
+		let (cx, cy) = (cx as i32, cy as i32);
+		let (xmin, xmax) = (cx-gap, cx + self.width + gap);
+		let (ymin, ymax) = (cy-gap, cy + self.height + gap);
+		if x < xmin || x > xmax || y < ymin || y > ymax {
+			true
+		} else {
+			false
 		}
 	}
 
@@ -262,6 +351,23 @@ impl Display {
 	}
 
 	#[inline]
+	fn _is_rec_offscreen(&self, w: &World, pos: Vector2, width: f32, height: f32) -> bool {
+		if !self.is_pos_offscreen(&pos, w, RENDER_FILTER_GAP) {
+			return false;
+		}
+		if !self.is_pos_offscreen(&(pos + Vector2::new(width, 0.0)), w, RENDER_FILTER_GAP) {
+			return false;
+		}
+		if !self.is_pos_offscreen(&(pos + Vector2::new(0.0, height)), w, RENDER_FILTER_GAP) {
+			return false;
+		}
+		if !self.is_pos_offscreen(&(pos + Vector2::new(width, height)), w, RENDER_FILTER_GAP) {
+			return false;
+		}
+		return true;
+	}
+
+	#[inline]
 	fn _draw_world(&self, d: &mut RaylibMode2D<'_, RaylibDrawHandle<'_>>, w: &World, rs: &ResourceSet, is: &InputHandler, r: &Vector2, rlau: &mut RaylibAudio) {
 		if w.show_map() {
 			let tset = rs.get_texture(0xf0);
@@ -285,8 +391,12 @@ impl Display {
 				}
 			}
 		}
+		let mut renderables = vec![];
 		for (_id, sp) in &w.units {
 			let (tid, rec, pos, sif) = sp.prep_draw(w);
+			if self._is_rec_offscreen(w, pos, rec.width, rec.height) {
+				continue
+			}
 			if let Some((id, lp)) = sif {
 				let s = rs.get_sound(id);
 				if sp.nascent_state() || lp{
@@ -296,24 +406,50 @@ impl Display {
 			let rcol = if is.show && *_id == is.cur_id {Color::YELLOW} 
 						else if is.get_state() == 0 && is.is_frozen(&*_id) {Color::GRAY}
 						else {sp.get_tint()};
-			d.draw_texture_rec(rs.get_texture(tid), rec, pos, rcol);
+			renderables.push(Renderable::new_unit(rs.get_texture(tid), sp.wpos, pos, rec, rcol));
 		}
 		for st in &w.statics {
 			let (tid, x, y) = st.prep_draw(w);
-			let (mut bw, mut bh) = (0,0);
+			// if self.is_ipos_offscreen(x, y, w, RENDER_FILTER_GAP) {
+			// 	continue;
+			// }
+			//let (mut bw, mut bh) = (0,0);
 			if rs.is_texture_region(tid) {
 				let (tex, rec) = rs.get_texture_region(tid);
-				bw = rec.width as i32;
-				bh = rec.height as i32;
 				let pos = Vector2::new(x as f32, y as f32 - rec.height + w.get_tile_size().1 as f32);
-				d.draw_texture_rec(tex, rec, pos, Color::WHITE);
+				//d.draw_texture_rec(tex, rec, pos, Color::WHITE);
+				if self._is_rec_offscreen(w, pos, rec.width, rec.height) {
+					continue;
+				}
+				renderables.push(Renderable::new_static_texreg(tex, pos, st.wx, st.wy, *rec));
 			} else {
 				let tex = rs.get_texture(tid);
 				let (x,y) = (x, y -tex.height() + w.get_tile_size().1);
-				d.draw_texture(tex, x, y, Color::WHITE);
+				// d.draw_texture(tex, x, y, Color::WHITE);
+				if self._is_rec_offscreen(w, Vector2::new(x as f32,y as f32), tex.width() as f32, tex.height() as f32) {
+					continue;
+				}
+				renderables.push(Renderable::new_static(tex, x, y, st.wx, st.wy));
 			}
-			if BOX_STATICS {
-				d.draw_rectangle_lines(x, y, bw, bh, Color::WHITE);
+			//if BOX_STATICS {
+			//	d.draw_rectangle_lines(x, y, bw, bh, Color::WHITE);
+			//}
+		}
+		renderables.sort_by(Renderable::cmp);	// Sort draw by world position, render farthest first.
+		//println!("Number of renderables is {}", renderables.len());
+		let (mut bw, mut bh) = (0, 0);
+		for rd in renderables {
+			if let Some(rec) = rd.reg {
+				bw = rec.width as i32;
+				bh = rec.height as i32;
+				d.draw_texture_rec(rd.tex, rec, rd.spos, rd.tint)
+			} else {
+				bw = rd.tex.width();
+				bh = rd. tex.height();
+				d.draw_texture_v(rd.tex, rd.spos, rd.tint)
+			}
+			if BOX_STATICS && rd.is_static {
+				d.draw_rectangle_lines(rd.spos.x as i32, rd.spos.y as i32, bw, bh, Color::WHITE);
 			}
 		}
 		for proj in &w.projectiles {

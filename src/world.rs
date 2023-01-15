@@ -312,9 +312,9 @@ pub struct StaticTex {
 	/// The id of texture from resource set.
 	tex_id: u8,
 	/// The world x-co-ordinate of the image.
-	wx: i32,
+	pub (crate) wx: i32,
 	/// The world y-co-ordinate of the image.
-	wy: i32,
+	pub (crate) wy: i32,
 }
 
 impl StaticTex {
@@ -692,7 +692,7 @@ pub fn order_pending(o: &Order, w: &mut World, next_state: &mut Option<u8>) -> b
 		}
 		Order::MutHealthR(id, delta) => {
 			let u = w.units.get_mut(id).unwrap();
-			let absdel = delta * w.unit_types.get(&u.type_id).unwrap().max_health * delta;
+			let absdel = delta * w.unit_types.get(&u.type_id).unwrap().max_health;
 			u.health += absdel;
 			false
 		}
@@ -721,7 +721,13 @@ fn has_unit_moved(w: &mut World, uid: u8, co_ords: (i32, i32)) -> bool {
 }
 
 fn has_unit_attacked(w: &mut World, uid: u8, trg: u8, co_ords: (i32,i32)) -> bool {
-	let tp = w.units.get(&trg).expect("Invalid unit ID").wpos;
+	let tp = match w.units.get(&trg) {
+		Some(e) => e,
+		None => {
+			return true;
+		}
+	}.wpos;
+	//.expect("Invalid unit ID").wpos;
 	let u: &mut Unit = w.units.get_mut(&uid).expect("Invalid unit ID");
 	let ut = w.unit_types.get(&u.type_id).expect("Invalid unit type ID");
 	if u.busy {
@@ -731,7 +737,10 @@ fn has_unit_attacked(w: &mut World, uid: u8, trg: u8, co_ords: (i32,i32)) -> boo
 			_chust(u,UnitState::Stand);
 			u.busy = false;
 			let atk_id = u.type_id;
-			let t = w.units.get_mut(&trg).expect("Invalid unit ID");
+			let t = match w.units.get_mut(&trg) {
+				None => {return false},	// お前 和 網 死んでいる
+				Some(t) => t
+			};
 			let dmg = w.dmg_func.invoke(atk_id, t.type_id);
 			t.health -= dmg; //ut.max_health*ut.base_attack;
 			return false;
@@ -1027,6 +1036,11 @@ pub fn tile_type_at(w: &World, x: i32, y: i32) -> TileType {
 	} else {
 		TileType::Allowed
 	}
+}
+
+/// Get the id of the unit type of a given unit. 
+pub fn get_type_id(w: &World, uid: u8) -> u8 {
+	w.units.get(&uid).expect("No such unit").type_id
 }
 
 pub(crate) fn _unit_health(w: &World, uid: u8) -> (f32, f32) {

@@ -1046,6 +1046,20 @@
 <span id="1041">1041</span>
 <span id="1042">1042</span>
 <span id="1043">1043</span>
+<span id="1044">1044</span>
+<span id="1045">1045</span>
+<span id="1046">1046</span>
+<span id="1047">1047</span>
+<span id="1048">1048</span>
+<span id="1049">1049</span>
+<span id="1050">1050</span>
+<span id="1051">1051</span>
+<span id="1052">1052</span>
+<span id="1053">1053</span>
+<span id="1054">1054</span>
+<span id="1055">1055</span>
+<span id="1056">1056</span>
+<span id="1057">1057</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Manages Renderables, Game Objects, Isometric Tilemaps, and Co-ordinate conversions.</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Error</span>;
@@ -1360,9 +1374,9 @@
 	<span class="doccomment">/// The id of texture from resource set.</span>
 	<span class="ident">tex_id</span>: <span class="ident">u8</span>,
 	<span class="doccomment">/// The world x-co-ordinate of the image.</span>
-	<span class="ident">wx</span>: <span class="ident">i32</span>,
+	<span class="kw">pub</span> (<span class="kw">crate</span>) <span class="ident">wx</span>: <span class="ident">i32</span>,
 	<span class="doccomment">/// The world y-co-ordinate of the image.</span>
-	<span class="ident">wy</span>: <span class="ident">i32</span>,
+	<span class="kw">pub</span> (<span class="kw">crate</span>) <span class="ident">wy</span>: <span class="ident">i32</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">StaticTex</span> {
@@ -1740,7 +1754,7 @@
 		}
 		<span class="ident">Order::MutHealthR</span>(<span class="ident">id</span>, <span class="ident">delta</span>) =&gt; {
 			<span class="kw">let</span> <span class="ident">u</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get_mut</span>(<span class="ident">id</span>).<span class="ident">unwrap</span>();
-			<span class="kw">let</span> <span class="ident">absdel</span> <span class="op">=</span> <span class="ident">delta</span> <span class="op">*</span> <span class="ident">w</span>.<span class="ident">unit_types</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">u</span>.<span class="ident">type_id</span>).<span class="ident">unwrap</span>().<span class="ident">max_health</span> <span class="op">*</span> <span class="ident">delta</span>;
+			<span class="kw">let</span> <span class="ident">absdel</span> <span class="op">=</span> <span class="ident">delta</span> <span class="op">*</span> <span class="ident">w</span>.<span class="ident">unit_types</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">u</span>.<span class="ident">type_id</span>).<span class="ident">unwrap</span>().<span class="ident">max_health</span>;
 			<span class="ident">u</span>.<span class="ident">health</span> <span class="op">+</span><span class="op">=</span> <span class="ident">absdel</span>;
 			<span class="bool-val">false</span>
 		}
@@ -1769,7 +1783,13 @@
 }
 
 <span class="kw">fn</span> <span class="ident">has_unit_attacked</span>(<span class="ident">w</span>: <span class="kw-2">&amp;mut</span> <span class="ident">World</span>, <span class="ident">uid</span>: <span class="ident">u8</span>, <span class="ident">trg</span>: <span class="ident">u8</span>, <span class="ident">co_ords</span>: (<span class="ident">i32</span>,<span class="ident">i32</span>)) -&gt; <span class="ident">bool</span> {
-	<span class="kw">let</span> <span class="ident">tp</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">trg</span>).<span class="ident">expect</span>(<span class="string">&quot;Invalid unit ID&quot;</span>).<span class="ident">wpos</span>;
+	<span class="kw">let</span> <span class="ident">tp</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">trg</span>) {
+		<span class="prelude-val">Some</span>(<span class="ident">e</span>) =&gt; <span class="ident">e</span>,
+		<span class="prelude-val">None</span> =&gt; {
+			<span class="kw">return</span> <span class="bool-val">true</span>;
+		}
+	}.<span class="ident">wpos</span>;
+	<span class="comment">//.expect(&quot;Invalid unit ID&quot;).wpos;</span>
 	<span class="kw">let</span> <span class="ident">u</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Unit</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">uid</span>).<span class="ident">expect</span>(<span class="string">&quot;Invalid unit ID&quot;</span>);
 	<span class="kw">let</span> <span class="ident">ut</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">unit_types</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">u</span>.<span class="ident">type_id</span>).<span class="ident">expect</span>(<span class="string">&quot;Invalid unit type ID&quot;</span>);
 	<span class="kw">if</span> <span class="ident">u</span>.<span class="ident">busy</span> {
@@ -1779,7 +1799,10 @@
 			<span class="ident">_chust</span>(<span class="ident">u</span>,<span class="ident">UnitState::Stand</span>);
 			<span class="ident">u</span>.<span class="ident">busy</span> <span class="op">=</span> <span class="bool-val">false</span>;
 			<span class="kw">let</span> <span class="ident">atk_id</span> <span class="op">=</span> <span class="ident">u</span>.<span class="ident">type_id</span>;
-			<span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">trg</span>).<span class="ident">expect</span>(<span class="string">&quot;Invalid unit ID&quot;</span>);
+			<span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">trg</span>) {
+				<span class="prelude-val">None</span> =&gt; {<span class="kw">return</span> <span class="bool-val">false</span>},	<span class="comment">// お前 和 網 死んでいる</span>
+				<span class="prelude-val">Some</span>(<span class="ident">t</span>) =&gt; <span class="ident">t</span>
+			};
 			<span class="kw">let</span> <span class="ident">dmg</span> <span class="op">=</span> <span class="ident">w</span>.<span class="ident">dmg_func</span>.<span class="ident">invoke</span>(<span class="ident">atk_id</span>, <span class="ident">t</span>.<span class="ident">type_id</span>);
 			<span class="ident">t</span>.<span class="ident">health</span> <span class="op">-</span><span class="op">=</span> <span class="ident">dmg</span>; <span class="comment">//ut.max_health*ut.base_attack;</span>
 			<span class="kw">return</span> <span class="bool-val">false</span>;
@@ -2075,6 +2098,11 @@
 	} <span class="kw">else</span> {
 		<span class="ident">TileType::Allowed</span>
 	}
+}
+
+<span class="doccomment">/// Get the id of the unit type of a given unit. </span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_type_id</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="ident">World</span>, <span class="ident">uid</span>: <span class="ident">u8</span>) -&gt; <span class="ident">u8</span> {
+	<span class="ident">w</span>.<span class="ident">units</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">uid</span>).<span class="ident">expect</span>(<span class="string">&quot;No such unit&quot;</span>).<span class="ident">type_id</span>
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">_unit_health</span>(<span class="ident">w</span>: <span class="kw-2">&amp;</span><span class="ident">World</span>, <span class="ident">uid</span>: <span class="ident">u8</span>) -&gt; (<span class="ident">f32</span>, <span class="ident">f32</span>) {

@@ -12,6 +12,8 @@ use raylib::ffi::KeyboardKey;
 
 use std::fmt;
 
+pub const DEBUG_ORDERS: bool = true;
+
 #[derive(Debug)]
 /// An enum containing all possible orders followed by units.
 pub enum Order {
@@ -27,6 +29,19 @@ pub enum Order {
 	MutHealthA(u8, f32),
 	/// Order to declare player defeat.
 	DEFEAT
+}
+
+impl Order {
+	/// Check if an order is valid.
+	fn is_valid(&self, w: &World) -> bool {
+		match self {
+			Order::ATTACK(a, d, ..) => w.units.contains_key(a) && w.units.contains_key(d),
+			Order::MOVE(u, ..) => w.units.contains_key(u),
+			Order::MutHealthR(u, ..) => w.units.contains_key(u),
+			Order::MutHealthA(u, ..) => w.units.contains_key(u),
+			_ => true
+		}
+	}
 }
 
 /// Plain struct to store state variables related to user input.
@@ -55,7 +70,8 @@ pub(crate) struct InputHandler {
 	/// Flag to show or hide UI.
 	pub show: bool,
 	/// Flag to show or unit type information.
-	pub show_info: bool
+	pub show_info: bool,
+	log_timer: f32
 }
 
 impl InputHandler {
@@ -74,16 +90,22 @@ impl InputHandler {
 			frozen: HashSet::new(),
 			isplrsel: false,
 			show: false,
-			show_info: false
+			show_info: false,
+			log_timer: 0.0
 		}
 	}
 
 	/// Method invoked during game loop to handle key and mouse inputs.
-	pub fn handle(&mut self, w: &mut World, rl: &RaylibHandle, sl: &StateListener, rlau: &mut RaylibAudio, rs: &mut ResourceSet) {
+	pub fn handle(&mut self, w: &mut World, rl: &RaylibHandle, sl: &mut StateListener, rlau: &mut RaylibAudio, rs: &mut ResourceSet) {
 		if self.state == 2 || self.state == 3 {
+			self.log_timer += rl.get_frame_time();
 			let mut next_state = None;
 			self.ovec.retain(|o| {
-				crate::world::order_pending(o,w, &mut next_state)
+				if o.is_valid(w) {
+					crate::world::order_pending(o,w, &mut next_state)
+				} else {
+					false
+				}
 			});
 			let delta = rl.get_frame_time();
 
@@ -110,6 +132,11 @@ impl InputHandler {
 			}
 			if let Some(i) = next_state {
 				self.state = i;
+			}
+			if DEBUG_ORDERS && self.log_timer > 60.0 {
+				println!("Following orders are active {:?}", self.ovec);
+				self.log_timer = 0.0;
+				self.state = 0;
 			}
 			return;
 		}
@@ -143,6 +170,7 @@ impl InputHandler {
 			self.state = 3;
 			self.frozen.clear();
 			self.ovec.clear();
+			self.log_timer = 0.0;
 			// To check.
 			let m = w.bgm_id;
 			sl.notify_turn(w, &mut self.ovec);

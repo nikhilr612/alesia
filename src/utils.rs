@@ -62,6 +62,10 @@ impl ResourceSet {
 	/// * 240 (`0xf0`)- the tileset. 
 	/// * 241(`0xf1`) - the 'select tile' image that follows the cursor when a unit is selected to be moved.
 	/// * 242(`0xf2`) - the background image for the unit information text.
+	/// * 243 ('0xf3') - the 'move tile' image that is shown on tiles that the selected unit is allowed to move to.
+	/// * 244 ('0xf4') - the 'attack tile' image that is shown for tiles that the unit can attack but not move to.
+	/// * 248 ('0xf8') - the unit type information window.
+	/// * 245 ('0xf5') - the text box on which introduction text is rendered.
 	/// The method does not load textures, but stores id-path mappings so that they may later be loaded once an OpenGL context is available.
 	pub fn map_texture(&mut self, id: u8, path: &str) {
 		self.deftex = id;
@@ -210,7 +214,7 @@ pub fn load_all(rs: &mut ResourceSet, rl: &mut RaylibHandle, rthread: &RaylibThr
 type InitHandle = fn();
 /// Type alias for nullable C ABI function pointer for `on_init` [callback](StateListener). 
 pub type CInitHandle = Option<extern "C" fn()>; 
-type TurnHandle = fn(&mut crate::world::World, &mut Vec<Order>);
+type TurnHandle = Box<dyn FnMut(&mut crate::world::World, &mut Vec<Order>)>;
 /// Type alias for nullable C ABI function pointer for `on_turn` [callback](StateListener).
 /// # Safety
 /// The call site retains ownership of all non-primitive parameters. 
@@ -262,11 +266,11 @@ impl StateListener {
 	}
 
 	/// Bind a function for callback when player turn ends.
-	pub fn bind_turn(&mut self, f: TurnHandle) {
+	pub fn bind_turn(&mut self, f: impl FnMut(&mut crate::world::World, &mut Vec<Order>) + 'static) {
 		if self.raw {
 			eprintln!("warning [state_listener]: rust fp bound to raw listener!");
 		}
-		self.on_turn = Some(f);
+		self.on_turn = Some(Box::new(f));
 	}
 
 	/// FFI Internal
@@ -299,13 +303,13 @@ impl StateListener {
 	}
 
 	/// Notify this listener that turn has ended, i.e, transition from WAITING -> ALIVE 
-	pub fn notify_turn(&self, w: &mut crate::world::World, ih: &mut Vec<Order>) {
+	pub fn notify_turn(&mut self, w: &mut crate::world::World, ih: &mut Vec<Order>) {
 		if self.raw {
 			if let Some(f) = self.on_turn_raw {
 				f(w,ih);
 			}
 		} else {
-			if let Some(f) = self.on_turn {
+			if let Some(f) = &mut self.on_turn {
 				f(w,ih);
 			}
 		}

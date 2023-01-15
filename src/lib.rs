@@ -79,15 +79,15 @@ fn load_map() {
     rs.map_sound(255, "res/select.wav");
 
     let mut ut = world::UnitType::new(3, "Swordsman".to_string(), 10.0, 0.5,  2, 1, 1.5);
-    ut.def_anim_muted((32,48), 10, (0,0), 6.0, false);
-    ut.def_anim_muted((32,48), 10, (0,48), 6.0, false);
-    ut.def_anim_muted((32,48), 10, (0,48), 6.0, true);
-    ut.def_anim_muted((32,48), 10, (0,0), 6.0, true);
-    ut.def_anim_muted((48,64), 5, (0,96), 6.0, false);
-    ut.def_anim_muted((48,64), 5, (0,160), 6.0, false);
-    ut.def_anim_muted((48,64), 5, (0,160), 6.0, true);
-    ut.def_anim_muted((48,64), 5, (0,96), 6.0, true);
-    ut.def_anim_muted((32,48), 1, (0,0), 6.0, false);
+    ut.def_anim_muted((32,48), 10, (0,0), 8.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 8.0, false);
+    ut.def_anim_muted((32,48), 10, (0,48), 8.0, true);
+    ut.def_anim_muted((32,48), 10, (0,0), 8.0, true);
+    ut.def_anim_muted((48,64), 5, (0,96), 8.0, false);
+    ut.def_anim_muted((48,64), 5, (0,160), 8.0, false);
+    ut.def_anim_muted((48,64), 5, (0,160), 8.0, true);
+    ut.def_anim_muted((48,64), 5, (0,96), 8.0, true);
+    ut.def_anim_muted((32,48), 1, (0,0), 8.0, false);
     ut.set_info("Wields long swords.\nAtk: 10\tDef:5".to_string());
     world::register_unit_type(&mut w, ut, 0);
 
@@ -124,7 +124,7 @@ fn load_map() {
     sl.bind_init(|| {
         println!("Finished initialization of display!");
     });
-    sl.bind_turn(|_w, o| {
+    sl.bind_turn(|_w, _o| {
         //o.push(input::Order::DEFEAT);
     });
     w.bind_damage_func(|_id1, _id2| {
