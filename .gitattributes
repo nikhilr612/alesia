@@ -1,1 +1,1 @@
-target/doc/* linguist-generated
+target/** linguist-vendored
